@@ -17,7 +17,7 @@ services:
       - app-network
 
   api:
-    build: ./api
+    build: ./backend
     container_name: node_api
     ports:
       - "4000:4000"
@@ -43,7 +43,7 @@ services:
       - app-network
 
   web:
-    build: ./web
+    build: ./frontend
     container_name: react_web
     ports:
       - "80:80"

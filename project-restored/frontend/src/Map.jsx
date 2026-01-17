@@ -11,9 +11,11 @@ const Map = () => {
       style: {
         version: 8,
         sources: {
-          'antananarivo': {
+          antananarivo: {
             type: 'raster',
-            tiles: ['/data/osm-2020-02-10-v3.11_madagascar_antananarivo/{z}/{x}/{y}.png'],
+            tiles: [
+              '/data/osm-2020-02-10-v3.11_madagascar_antananarivo/{z}/{x}/{y}.png'
+            ],
             tileSize: 256
           }
         },
@@ -25,14 +27,20 @@ const Map = () => {
           }
         ]
       },
-      center: [47.5, -18.9], // Antananarivo
+      center: [47.5, -18.9],
       zoom: 12
     });
 
     return () => map.remove();
   }, []);
 
-  return <div ref={mapContainer} style={{ width: '100%', height: '500px' }} />;
+  return (
+    <div
+      ref={mapContainer}
+      style={{ width: '100%', height: '500px' }}
+    />
+  );
 };
 
 export default Map;
+
