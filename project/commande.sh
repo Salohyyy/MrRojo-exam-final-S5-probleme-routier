@@ -1,2 +1,0 @@
-# Installer tippecanoe ou l'utiliser via Docker
-docker run --rm -v D:/work/S5/MrRojo/MrRojo-exam-final-S5-probleme-routier/project/maps:/data -w /data klokantech/tippecanoe tippecanoe -o /data/output/antananarivo.mbtiles -z 14 -Z 0 antananarivo.pbf
