@@ -8,7 +8,23 @@ const Map = () => {
   useEffect(() => {
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'http://localhost:8080/styles/antananarivo.json', // style généré par tileserver
+      style: {
+        version: 8,
+        sources: {
+          'antananarivo': {
+            type: 'raster',
+            tiles: ['/data/osm-2020-02-10-v3.11_madagascar_antananarivo/{z}/{x}/{y}.png'],
+            tileSize: 256
+          }
+        },
+        layers: [
+          {
+            id: 'antananarivo',
+            type: 'raster',
+            source: 'antananarivo'
+          }
+        ]
+      },
       center: [47.5, -18.9], // Antananarivo
       zoom: 12
     });
