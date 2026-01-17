@@ -25,7 +25,7 @@ const Map = () => {
           }
         ]
       },
-      center: [47.5, -18.9], // Antananarivo
+      center: [47.5, -18.9],
       zoom: 12
     });
 

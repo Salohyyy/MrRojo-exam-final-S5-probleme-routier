@@ -20,7 +20,7 @@ services:
     build: ./api
     container_name: node_api
     ports:
-      - "4000:4000"
+      - "4001:4000"
     depends_on:
       - postgres
     environment:
@@ -46,7 +46,7 @@ services:
     build: ./web
     container_name: react_web
     ports:
-      - "80:80"
+      - "81:80"
     depends_on:
       - api
       - tileserver
