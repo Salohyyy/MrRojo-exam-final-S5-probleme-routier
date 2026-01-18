@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS user_auth_tracking (
     uid VARCHAR(255) PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
     failed_attempts INTEGER DEFAULT 0,
+    custom_max_attempts INTEGER, -- NULL = utilise le paramètre global
     is_blocked BOOLEAN DEFAULT FALSE,
     blocked_at TIMESTAMP,
     last_attempt_at TIMESTAMP,

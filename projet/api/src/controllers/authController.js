@@ -10,13 +10,13 @@ async function checkLoginAttempts(req, res) {
     const userRecord = await auth.getUserByEmail(email);
     const uid = userRecord.uid;
 
-    // Récupérer les paramètres
+    // Récupérer les paramètres globaux
     const settings = await pool.query('SELECT max_login_attempts FROM session_settings LIMIT 1');
-    const maxAttempts = settings.rows[0].max_login_attempts;
+    const globalMaxAttempts = settings.rows[0].max_login_attempts;
 
     // Vérifier le tracking de l'utilisateur
     const result = await pool.query(
-      'SELECT failed_attempts, is_blocked FROM user_auth_tracking WHERE uid = $1',
+      'SELECT failed_attempts, is_blocked, custom_max_attempts FROM user_auth_tracking WHERE uid = $1',
       [uid]
     );
 
@@ -26,7 +26,7 @@ async function checkLoginAttempts(req, res) {
         'INSERT INTO user_auth_tracking (uid, email) VALUES ($1, $2)',
         [uid, email]
       );
-      return res.json({ canLogin: true, attemptsLeft: maxAttempts });
+      return res.json({ canLogin: true, attemptsLeft: globalMaxAttempts });
     }
 
     const user = result.rows[0];
@@ -38,8 +38,16 @@ async function checkLoginAttempts(req, res) {
       });
     }
 
+    // Utiliser custom_max_attempts si défini, sinon le global
+    const maxAttempts = user.custom_max_attempts || globalMaxAttempts;
     const attemptsLeft = maxAttempts - user.failed_attempts;
-    res.json({ canLogin: true, attemptsLeft });
+    
+    res.json({ 
+      canLogin: true, 
+      attemptsLeft,
+      maxAttempts,
+      isCustom: user.custom_max_attempts !== null
+    });
 
   } catch (error) {
     console.error('Erreur checkLoginAttempts:', error);
@@ -55,8 +63,17 @@ async function recordFailedAttempt(req, res) {
     const userRecord = await auth.getUserByEmail(email);
     const uid = userRecord.uid;
 
+    // Récupérer les paramètres et les infos utilisateur
     const settings = await pool.query('SELECT max_login_attempts FROM session_settings LIMIT 1');
-    const maxAttempts = settings.rows[0].max_login_attempts;
+    const globalMaxAttempts = settings.rows[0].max_login_attempts;
+
+    const userResult = await pool.query(
+      'SELECT custom_max_attempts FROM user_auth_tracking WHERE uid = $1',
+      [uid]
+    );
+
+    // Déterminer le max attempts à utiliser
+    const maxAttempts = userResult.rows[0]?.custom_max_attempts || globalMaxAttempts;
 
     // Incrémenter le compteur
     const result = await pool.query(

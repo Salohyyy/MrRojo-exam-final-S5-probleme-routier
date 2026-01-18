@@ -7,7 +7,8 @@ const {
   updateMaxAttempts,
   getBlockedUsers,
   unblockUser,
-  getAllUsers
+  getAllUsers,
+  updateUserMaxAttempts
 } = require('../controllers/adminController');
 
 // Toutes les routes admin nécessitent authentification + rôle admin
@@ -23,5 +24,6 @@ router.put('/settings/max-attempts', updateMaxAttempts);
 router.get('/users', getAllUsers);
 router.get('/users/blocked', getBlockedUsers);
 router.post('/users/:uid/unblock', unblockUser);
+router.put('/users/:uid/max-attempts', updateUserMaxAttempts);
 
 module.exports = router;

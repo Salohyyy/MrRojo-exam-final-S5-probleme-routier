@@ -48,17 +48,17 @@ services:
       - app-network
     restart: unless-stopped
 
-  tileserver:
-    image: maptiler/tileserver-gl
-    container_name: offline_map
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./maps:/data
-    command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
-    networks:
-      - app-network
-    restart: unless-stopped
+  # tileserver:
+  #   image: maptiler/tileserver-gl
+  #   container_name: offline_map
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./maps:/data
+  #   command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
 
   web:
     build:
@@ -76,7 +76,7 @@ services:
       - "80:80"
     depends_on:
       - api
-      - tileserver
+      # - tileserver
     networks:
       - app-network
     restart: unless-stopped

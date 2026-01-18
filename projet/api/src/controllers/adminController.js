@@ -110,7 +110,8 @@ async function unblockUser(req, res) {
 async function getAllUsers(req, res) {
   try {
     const result = await pool.query(
-      `SELECT uid, email, failed_attempts, is_blocked, blocked_at, last_attempt_at, created_at
+      `SELECT uid, email, failed_attempts, custom_max_attempts, is_blocked, 
+              blocked_at, last_attempt_at, created_at
        FROM user_auth_tracking 
        ORDER BY created_at DESC`
     );
@@ -121,11 +122,50 @@ async function getAllUsers(req, res) {
   }
 }
 
+// Modifier le nombre de tentatives pour un utilisateur spécifique
+async function updateUserMaxAttempts(req, res) {
+  const { uid } = req.params;
+  const { attempts } = req.body;
+
+  // Si attempts est null, on réinitialise au paramètre global
+  if (attempts !== null && (attempts < 1 || attempts > 10)) {
+    return res.status(400).json({ 
+      error: 'Nombre de tentatives invalide (doit être entre 1 et 10, ou null pour réinitialiser)' 
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE user_auth_tracking 
+       SET custom_max_attempts = $1
+       WHERE uid = $2
+       RETURNING *`,
+      [attempts, uid]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    res.json({ 
+      success: true, 
+      user: result.rows[0],
+      message: attempts === null 
+        ? 'Nombre de tentatives réinitialisé au paramètre global'
+        : `Nombre de tentatives personnalisé défini à ${attempts}`
+    });
+  } catch (error) {
+    console.error('Erreur updateUserMaxAttempts:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+}
+
 module.exports = {
   getSettings,
   updateSessionDuration,
   updateMaxAttempts,
   getBlockedUsers,
   unblockUser,
-  getAllUsers
+  getAllUsers,
+  updateUserMaxAttempts
 };

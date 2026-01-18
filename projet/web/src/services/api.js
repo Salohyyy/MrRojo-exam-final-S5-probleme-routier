@@ -28,6 +28,7 @@ export const adminAPI = {
   getBlockedUsers: () => api.get('/api/admin/users/blocked'),
   getAllUsers: () => api.get('/api/admin/users'),
   unblockUser: (uid) => api.post(`/api/admin/users/${uid}/unblock`),
+  updateUserMaxAttempts: (uid, attempts) => api.put(`/api/admin/users/${uid}/max-attempts`, { attempts }),
 };
 
 export default api;

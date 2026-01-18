@@ -4,6 +4,7 @@ import { auth } from './config/firebase';
 import Login from './components/Login';
 import SessionSettings from './components/SessionSettings';
 import BlockedUsers from './components/BlockedUsers';
+import AllUsers from './components/AllUsers';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -65,6 +66,15 @@ function App() {
           Paramètres
         </button>
         <button
+          onClick={() => setActiveTab('users')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'users' ? styles.tabActive : {})
+          }}
+        >
+          Utilisateurs
+        </button>
+        <button
           onClick={() => setActiveTab('blocked')}
           style={{
             ...styles.tab,
@@ -77,6 +87,7 @@ function App() {
 
       <div style={styles.content}>
         {activeTab === 'settings' && <SessionSettings />}
+        {activeTab === 'users' && <AllUsers />}
         {activeTab === 'blocked' && <BlockedUsers />}
       </div>
     </div>
