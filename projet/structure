@@ -1,0 +1,38 @@
+projet/
+├── docker-compose.yml
+├── api/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── .env.example
+│   ├── src/
+│   │   ├── index.js
+│   │   ├── config/
+│   │   │   ├── database.js
+│   │   │   └── firebase.js
+│   │   ├── middleware/
+│   │   │   └── auth.js
+│   │   ├── models/
+│   │   │   └── init.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   │   └── admin.js
+│   │   └── controllers/
+│   │       ├── authController.js
+│   │       └── adminController.js
+├── web/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── index.html
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── config/
+│       │   └── firebase.js
+│       ├── components/
+│       │   ├── Login.jsx
+│       │   ├── SessionSettings.jsx
+│       │   └── BlockedUsers.jsx
+│       └── services/
+│           └── api.js

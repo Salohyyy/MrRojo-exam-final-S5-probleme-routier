@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: postgres_postgis
+    environment:
+      POSTGRES_DB: routes_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d routes_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  api:
+    build: ./api
+    container_name: node_api
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: routes_db
+      DB_USER: admin
+      DB_PASSWORD: admin
+      # Ajoutez vos credentials Firebase ici
+      FIREBASE_PROJECT_ID: your-project-id
+      FIREBASE_PRIVATE_KEY: your-private-key
+      FIREBASE_CLIENT_EMAIL: your-client-email
+    volumes:
+      - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  tileserver:
+    image: maptiler/tileserver-gl
+    container_name: offline_map
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./maps:/data
+    command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: http://localhost:4000
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    container_name: react_web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - tileserver
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
