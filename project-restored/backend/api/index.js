@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const { initDb, getTests, createTest } = require('../metiers/testService');
+const { getReports } = require('../metiers/reportService');
 
 const app = express();
 app.use(cors());
@@ -40,7 +41,18 @@ app.post('/test', async (req, res) => {
   }
 });
 
+app.get('/reports', async (req, res) => {
+  try {
+    const reports = await getReports(pool);
+    res.json(reports);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: 'Erreur lors de la récupération des signalements' });
+  }
+});
+
 app.listen(4000, () => {
   console.log('API running on port 4000');
 });
-
