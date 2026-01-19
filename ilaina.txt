@@ -1,0 +1,18 @@
+const firebaseConfig = {
+
+  apiKey: "AIzaSyAUykYIe-V-y1mR7wcx8Ulq7ZfLeOydBR8",
+
+  authDomain: "probleme-routier.firebaseapp.com",
+
+  projectId: "probleme-routier",
+
+  storageBucket: "probleme-routier.firebasestorage.app",
+
+  messagingSenderId: "69896272362",
+
+  appId: "1:69896272362:web:789270fa638001f41bda93"
+
+};
+
+
+psql -h localhost -p 5432 -U admin -d routes_db

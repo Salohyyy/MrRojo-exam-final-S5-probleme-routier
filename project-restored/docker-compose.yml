@@ -1,7 +1,5 @@
 version: "3.9"
-
 services:
-
   postgres:
     image: postgis/postgis:15-3.3
     container_name: postgres_postgis
@@ -46,10 +44,12 @@ services:
     build: ./web
     container_name: react_web
     ports:
-      - "80:80"
+      - "3000:3000"  # ← Changé à 3000
     depends_on:
       - api
       - tileserver
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     networks:
       - app-network
 
