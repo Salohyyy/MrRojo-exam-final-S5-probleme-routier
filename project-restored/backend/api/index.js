@@ -1,58 +1,40 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
-const { initDb, getTests, createTest } = require('../metiers/testService');
-const { getReports } = require('../metiers/reportService');
+require('dotenv').config();
+
+// On importe directement db depuis la config
+const { db } = require('../config/firebase.config'); // Vérifie bien le chemin ici selon ta structure
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  port: 5432
+// Routes
+const reportsRoutes = require('../routes/reports.routes');
+app.use('/api/reports', reportsRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-initDb(pool).catch(err => {
-  console.error('Erreur d’initialisation de la base de données', err);
-});
-
-app.get('/test', async (req, res) => {
+// Route de test Firebase simplifiée
+app.get('/api/test-firebase', async (req, res) => {
   try {
-    const tests = await getTests(pool);
-    res.json(tests);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la récupération des tests' });
+    // On utilise le db déjà importé en haut du fichier
+    const snapshot = await db.collection('reports-traite').limit(1).get();
+    res.json({ 
+      success: true, 
+      message: 'Firebase Firestore opérationnel',
+      count: snapshot.size
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.post('/test', async (req, res) => {
-  try {
-    const { description } = req.body;
-    const created = await createTest(pool, description);
-    res.json(created);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur lors de la création du test' });
-  }
-});
-
-app.get('/reports', async (req, res) => {
-  try {
-    const reports = await getReports(pool);
-    res.json(reports);
-  } catch (err) {
-    console.error(err);
-    res
-      .status(500)
-      .json({ error: 'Erreur lors de la récupération des signalements' });
-  }
-});
-
-app.listen(4000, () => {
-  console.log('API running on port 4000');
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

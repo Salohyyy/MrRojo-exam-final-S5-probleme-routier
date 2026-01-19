@@ -1,37 +1,48 @@
-import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '../firebase';
+import { useState, useEffect } from 'react';
 
-function useReportsTraite() {
+const useReportsTraite = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const q = query(collection(db, 'reports_traite'));
+  // En production Docker, l'API est accessible via /api grâce au proxy Nginx
+  const API_URL = '/api';
 
-    const unsubscribe = onSnapshot(
-      q,
-      snapshot => {
-        const items = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log('reports_traite snapshot size:', items.length);
-        setReports(items);
-        setLoading(false);
-      },
-      err => {
-        console.error(err);
-        setError(err);
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        console.log('🔄 Fetching reports from:', `${API_URL}/reports`);
+
+        const response = await fetch(`${API_URL}/reports`);
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Reports fetched:', data);
+
+        if (data.success) {
+          setReports(data.data);
+        } else {
+          throw new Error(data.message || 'Erreur lors de la récupération des données');
+        }
+      } catch (err) {
+        console.error('❌ Erreur:', err);
+        setError(err.message);
+        setReports([]);
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return unsubscribe;
-  }, []);
+    fetchReports();
+  }, [API_URL]);
 
   return { reports, loading, error };
-}
+};
 
 export default useReportsTraite;

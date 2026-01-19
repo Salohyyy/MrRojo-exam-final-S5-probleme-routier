@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   postgres:
@@ -23,11 +21,20 @@ services:
       - "4000:4000"
     depends_on:
       - postgres
+    env_file:
+      - .env  # ← Charger le fichier .env
     environment:
+      # Base de données
       DB_HOST: postgres
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
+      # Port
+      PORT: 4000
+      # Firebase - ces variables viennent du .env
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
     networks:
       - app-network
 
@@ -43,7 +50,10 @@ services:
       - app-network
 
   web:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: http://localhost:4000/api
     container_name: react_web
     ports:
       - "80:80"
