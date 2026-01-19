@@ -10,6 +10,12 @@ project-restored/
 ├── backend/
 │   ├── api/
 │   │   └── index.js
+│   ├── config/
+│   │   └── firebase.config.js
+│   ├── controller/
+│   │   └── report.controller.js
+│   ├── routes/
+│   │   └── report.routes.js
 │   ├── metiers/
 │   │   ├── reportService.js
 │   │   └── testService.js
