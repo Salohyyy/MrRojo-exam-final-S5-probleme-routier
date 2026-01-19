@@ -20,7 +20,7 @@ const ManagerDashboard = () => {
     });
 
     const API_URL = 'http://localhost:4000';
-    const TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbS9nb29nbGUuaWRlbnRpdHkuaWRlbnRpdHl0b29sa2l0LnYxLklkZW50aXR5VG9vbGtpdCIsImlhdCI6MTc2ODY3OTYyOSwiZXhwIjoxNzY4NjgzMjI5LCJpc3MiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BzaWduYWwtOWIzYjkuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BzaWduYWwtOWIzYjkuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJ1aWQiOiJwNlVhTUFHUk01V0hSRXhwaXBGYVRqbEY2R2syIn0.nEraqpJmt53K2sWvFaaaw8hO_v1S0SvBJmHjTq3_6pmdF6VlGC3GWXdF4wZA-EpdOXebRFJgAfp-ogYiGAOALR7rTCziE2kTjjt2nCdPWHnPliG_s4eTRxKKYJeUp9S7fI_yn_--6oH8nmfW3VFLxSqcXBAG_fUtegJKJkgmdyCciMsNOBrtqybAUAXjV6AJFkHhxLgenuurt16GADPXedl9NQrFhywhtFdiHfzL3OnPIpfe6530mTrOsPV3qtVV1FyZ1NacbOGB09AKZNDg1wcL40Hg6ublS6o687g12g51QHHz1Ak6ITifaKZnuDRlgZJJE3OeRtLAxpCcVN6SLQ';
+    const TOKEN = '';
 
     useEffect(() => {
         loadReports();

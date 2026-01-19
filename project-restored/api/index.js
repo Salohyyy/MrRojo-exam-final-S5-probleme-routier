@@ -122,7 +122,7 @@ app.post("/create_firebase_reports", async (req, res) => {
       user_id: req.user.uid
     };
 
-    const docRef = await db.collection("reports_non_traites").add(firebaseData);
+    const docRef = await db.collection("reports").add(firebaseData);
     
     res.status(201).json({
       firebaseId: docRef.id,
@@ -146,7 +146,7 @@ app.post("/sync/download", async (req, res) => {
 
     // Récupérer les reports non synchronisés depuis Firebase
     const snapshot = await db
-      .collection("reports_non_traites")
+      .collection("reports")
       .where("is_synced", "==", false)
       .get();
 

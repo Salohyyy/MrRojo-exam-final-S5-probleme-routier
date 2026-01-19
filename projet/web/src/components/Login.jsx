@@ -18,7 +18,7 @@ function Login() {
     try {
       // Vérifier les tentatives avant de se connecter
       const checkResponse = await authAPI.checkAttempts(email);
-      
+
       if (!checkResponse.data.canLogin) {
         setError(checkResponse.data.error);
         setLoading(false);
@@ -37,11 +37,11 @@ function Login() {
 
     } catch (err) {
       console.error('Erreur connexion:', err);
-      
+
       // Enregistrer la tentative échouée
       try {
         const failResponse = await authAPI.recordFailedAttempt(email);
-        
+
         if (failResponse.data.blocked) {
           setError(failResponse.data.message);
         } else {
@@ -60,9 +60,9 @@ function Login() {
     <div style={styles.container}>
       <div style={styles.card}>
         <h1 style={styles.title}>Connexion</h1>
-        
+
         {error && <div style={styles.error}>{error}</div>}
-        
+
         {attemptsLeft !== null && !error && (
           <div style={styles.info}>
             Tentatives restantes : {attemptsLeft}

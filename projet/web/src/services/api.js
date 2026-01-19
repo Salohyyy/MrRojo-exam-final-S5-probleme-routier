@@ -30,4 +30,40 @@ export const adminAPI = {
   unblockUser: (uid) => api.post(`/api/admin/users/${uid}/unblock`),
 };
 
+// ========================
+// REPORTS API
+// ========================
+export const reportsAPI = {
+  createReport: (data) => api.post('/api/reports/create', data),
+  getAllReports: (filter = 'all') => api.get('/api/reports/local', { params: { filter } }),
+  getReportById: (id) => api.get(`/api/reports/local/${id}`),
+  updateReport: (id, data) => api.put(`/api/reports/local/${id}`, data),
+  uploadReport: (id) => api.post(`/api/reports/local/${id}/upload`),
+  uploadAllReports: () => api.post('/api/reports/sync/upload'),
+  syncDownload: () => api.post('/api/reports/sync/download'),
+};
+
+export const utilsAPI = { 
+  // ========================
+  // COMPANIES
+  // ========================
+  getCompanies: () => api.get('/api/utils/companies'),
+  createCompany: (data) => api.post('/api/utils/companies', data),
+  updateCompany: (id, data) => api.put(`/api/utils/companies/${id}`, data),
+  deleteCompany: (id) => api.delete(`/api/utils/companies/${id}`),
+
+  // ========================
+  // REPORT STATUSES
+  // ========================
+  getReportStatuses: () => api.get('/api/utils/report-statuses'),
+  createReportStatus: (data) => api.post('/api/utils/report-statuses', data),
+  updateReportStatus: (id, data) => api.put(`/api/utils/report-statuses/${id}`, data),
+  deleteReportStatus: (id) => api.delete(`/api/utils/report-statuses/${id}`),
+
+  // ========================
+  // PROBLEM TYPES
+  // ========================
+  getProblemTypes: () => api.get('/api/utils/problem-types'),
+};
+
 export default api;
