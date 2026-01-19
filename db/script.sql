@@ -92,3 +92,47 @@ CREATE TABLE report_sync_histories (
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (report_sync_id) REFERENCES report_syncs(id)
 );
+
+-- Ajout d'une colonne firebase_id dans reports pour tracer l'origine
+ALTER TABLE reports ADD COLUMN firebase_id VARCHAR(100);
+
+-- Ajout d'une colonne sent_to_firebase dans report_syncs
+ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
+
+-- Index pour améliorer les performances
+CREATE INDEX idx_reports_firebase_id ON reports(firebase_id);
+CREATE INDEX idx_report_syncs_sent ON report_syncs(sent_to_firebase);
+CREATE INDEX idx_reports_synced ON reports(is_synced);
+
+-- Vue pour faciliter les requêtes
+CREATE OR REPLACE VIEW v_reports_complete AS
+SELECT 
+  r.id,
+  r.reported_at,
+  r.longitude,
+  r.latitude,
+  r.city,
+  r.is_synced,
+  r.firebase_id,
+  r.report_status_id,
+  r.problem_type_id,
+  r.user_id,
+  rs.id as sync_id,
+  rs.surface,
+  rs.budget,
+  rs.progress,
+  rs.sent_to_firebase,
+  rs.company_id,
+  c.name as company_name,
+  c.address as company_address,
+  rstat.name as status_name,
+  rstat.level as status_level,
+  pt.name as problem_type_name,
+  u.username,
+  u.email as user_email
+FROM reports r
+LEFT JOIN report_syncs rs ON r.id = rs.report_id
+LEFT JOIN companies c ON rs.company_id = c.id
+LEFT JOIN report_statuses rstat ON r.report_status_id = rstat.id
+LEFT JOIN problem_types pt ON r.problem_type_id = pt.id
+LEFT JOIN users u ON r.user_id = u.id;
