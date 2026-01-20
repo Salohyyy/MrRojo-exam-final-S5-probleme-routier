@@ -12,7 +12,10 @@ app.use(express.json());
 
 // Routes
 const reportsRoutes = require('../routes/reports.routes');
+const managerRoutes = require('../routes/manager.routes');
+
 app.use('/api/reports', reportsRoutes);
+app.use('/api', managerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,5 +1,9 @@
 const { db } = require('../config/firebase.config');
+const { pool } = require('../config/db.config');
+const { getReports } = require('../metiers/reportService');
 
+// GET /api/reports
+// Récupère tous les signalements depuis Firebase (ancienne version)
 const getAllReports = async (req, res) => {
   try {
     const reportsRef = db.collection('reports_traites');
@@ -21,7 +25,7 @@ const getAllReports = async (req, res) => {
       });
     });
 
-    console.log(`✅ ${reports.length} signalements récupérés`);
+    console.log(`✅ ${reports.length} signalements récupérés depuis Firebase`);
 
     res.status(200).json({
       success: true,
@@ -38,10 +42,33 @@ const getAllReports = async (req, res) => {
   }
 };
 
+// GET /api/reports/postgres
+// Récupère tous les signalements depuis PostgreSQL (avec jointures)
+const getAllReportsFromPostgres = async (req, res) => {
+  try {
+    const reports = await getReports(pool);
+
+    console.log(`✅ ${reports.length} signalements récupérés depuis PostgreSQL`);
+
+    res.status(200).json({
+      success: true,
+      data: reports,
+      count: reports.length
+    });
+  } catch (error) {
+    console.error('❌ Erreur getAllReportsFromPostgres:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: error.message
+    });
+  }
+};
+
 const getReportById = async (req, res) => {
   try {
     const { id } = req.params;
-    const docRef = db.collection('reports-traite').doc(id);
+    const docRef = db.collection('reports_traites').doc(id);
     const doc = await docRef.get();
 
     if (!doc.exists) {
@@ -71,7 +98,7 @@ const getReportById = async (req, res) => {
 const getReportsByCity = async (req, res) => {
   try {
     const { city } = req.params;
-    const reportsRef = db.collection('reports-traite');
+    const reportsRef = db.collection('reports_traites');
     const snapshot = await reportsRef.where('city', '==', city).get();
 
     const reports = [];
@@ -99,6 +126,7 @@ const getReportsByCity = async (req, res) => {
 
 module.exports = {
   getAllReports,
+  getAllReportsFromPostgres,
   getReportById,
   getReportsByCity
 };

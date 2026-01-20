@@ -10,10 +10,11 @@ async function getReports(pool) {
       rs.name AS report_status,
       pt.name AS problem_type,
       u.username AS reporter,
+      s.id AS sync_id,
       s.surface,
       s.budget,
       s.progress,
-      c.name AS company
+      c.name AS company_name
     FROM reports r
     LEFT JOIN report_statuses rs ON r.report_status_id = rs.id
     LEFT JOIN problem_types pt ON r.problem_type_id = pt.id

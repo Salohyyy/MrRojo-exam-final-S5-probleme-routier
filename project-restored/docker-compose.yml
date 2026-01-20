@@ -11,6 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
 
@@ -21,8 +22,6 @@ services:
       - "4000:4000"
     depends_on:
       - postgres
-    env_file:
-      - .env  # ← Charger le fichier .env
     environment:
       # Base de données
       DB_HOST: postgres
@@ -31,10 +30,6 @@ services:
       DB_PASSWORD: admin
       # Port
       PORT: 4000
-      # Firebase - ces variables viennent du .env
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
-      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
     networks:
       - app-network
 
