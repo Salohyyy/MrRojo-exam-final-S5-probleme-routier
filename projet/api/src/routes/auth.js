@@ -4,16 +4,16 @@ const { verifyFirebaseToken } = require('../middleware/auth');
 const {
   checkLoginAttempts,
   recordFailedAttempt,
-  recordSuccessfulLogin
+  recordSuccessfulLogin,
+  checkSession
 } = require('../controllers/authController');
 
-// Vérifier si un utilisateur peut se connecter
+// Routes publiques
 router.post('/check-attempts', checkLoginAttempts);
-
-// Enregistrer une tentative échouée
 router.post('/failed-attempt', recordFailedAttempt);
 
-// Enregistrer une connexion réussie (protégé)
+// Routes protégées
 router.post('/successful-login', verifyFirebaseToken, recordSuccessfulLogin);
+router.get('/check-session', verifyFirebaseToken, checkSession);
 
 module.exports = router;

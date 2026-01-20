@@ -8,7 +8,6 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,41 +15,27 @@ function Login() {
     setLoading(true);
 
     try {
-      // Vérifier les tentatives avant de se connecter
-      const checkResponse = await authAPI.checkAttempts(email);
-      
-      if (!checkResponse.data.canLogin) {
-        setError(checkResponse.data.error);
-        setLoading(false);
-        return;
-      }
-
-      setAttemptsLeft(checkResponse.data.attemptsLeft);
-
-      // Tenter la connexion Firebase
+      // Connexion Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const token = await userCredential.user.getIdToken();
       localStorage.setItem('firebaseToken', token);
+
+      // Vérifier les droits admin
+      const idTokenResult = await userCredential.user.getIdTokenResult();
+      if (!idTokenResult.claims.admin) {
+        setError('Vous devez être un employé admin pour accéder à cette interface.');
+        await auth.signOut();
+        localStorage.removeItem('firebaseToken');
+        setLoading(false);
+        return;
+      }
 
       // Enregistrer la connexion réussie
       await authAPI.recordSuccessfulLogin();
 
     } catch (err) {
       console.error('Erreur connexion:', err);
-      
-      // Enregistrer la tentative échouée
-      try {
-        const failResponse = await authAPI.recordFailedAttempt(email);
-        
-        if (failResponse.data.blocked) {
-          setError(failResponse.data.message);
-        } else {
-          setError(`Identifiants incorrects. ${failResponse.data.attemptsLeft} tentative(s) restante(s).`);
-          setAttemptsLeft(failResponse.data.attemptsLeft);
-        }
-      } catch (apiErr) {
-        setError('Email ou mot de passe incorrect.');
-      }
+      setError('Email ou mot de passe incorrect, ou vous n\'avez pas les droits admin.');
     } finally {
       setLoading(false);
     }
@@ -59,15 +44,11 @@ function Login() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Connexion</h1>
+        <div style={styles.badge}>Interface Admin</div>
+        <h1 style={styles.title}>Connexion Administrateur</h1>
+        <p style={styles.subtitle}>Accès réservé aux employés admin</p>
         
         {error && <div style={styles.error}>{error}</div>}
-        
-        {attemptsLeft !== null && !error && (
-          <div style={styles.info}>
-            Tentatives restantes : {attemptsLeft}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
@@ -77,6 +58,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
+              placeholder="admin@example.com"
               required
               disabled={loading}
             />
@@ -89,6 +71,7 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
+              placeholder="••••••••"
               required
               disabled={loading}
             />
@@ -102,6 +85,14 @@ function Login() {
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
+
+        <div style={styles.infoBox}>
+          <strong>ℹ️ Information :</strong>
+          <p style={styles.infoText}>
+            Seuls les employés avec le rôle "admin" peuvent accéder à cette interface.
+            Utilisez le bouton en haut à droite pour tester l'interface utilisateur normale.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -123,24 +114,30 @@ const styles = {
     width: '100%',
     maxWidth: '400px',
   },
+  badge: {
+    display: 'inline-block',
+    backgroundColor: '#ffebee',
+    color: '#d32f2f',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    marginBottom: '16px',
+  },
   title: {
     fontSize: '24px',
     fontWeight: '600',
-    marginBottom: '24px',
-    textAlign: 'center',
+    marginBottom: '8px',
     color: '#333',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '24px',
   },
   error: {
     backgroundColor: '#ffebee',
     color: '#c62828',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  info: {
-    backgroundColor: '#e3f2fd',
-    color: '#1565c0',
     padding: '12px',
     borderRadius: '4px',
     marginBottom: '16px',
@@ -177,6 +174,18 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     marginTop: '8px',
+  },
+  infoBox: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '4px',
+    fontSize: '13px',
+    color: '#666',
+  },
+  infoText: {
+    marginTop: '8px',
+    lineHeight: '1.6',
   },
 };
 

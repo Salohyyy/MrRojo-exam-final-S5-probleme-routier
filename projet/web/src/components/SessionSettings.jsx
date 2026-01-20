@@ -16,8 +16,8 @@ function SessionSettings() {
     try {
       const response = await adminAPI.getSettings();
       setSettings(response.data);
-      setSessionDuration(response.data.session_duration_hours);
-      setMaxAttempts(response.data.max_login_attempts);
+      setSessionDuration(response.data.session_duration_minutes);
+      setMaxAttempts(response.data.default_max_login_attempts);
     } catch (error) {
       console.error('Erreur chargement paramètres:', error);
       showMessage('error', 'Erreur lors du chargement des paramètres');
@@ -33,8 +33,15 @@ function SessionSettings() {
 
   const handleUpdateSessionDuration = async (e) => {
     e.preventDefault();
+    const minutes = parseInt(sessionDuration);
+    
+    if (minutes < 1 || minutes > 1440) {
+      showMessage('error', 'Durée invalide (1-1440 minutes)');
+      return;
+    }
+
     try {
-      await adminAPI.updateSessionDuration(parseInt(sessionDuration));
+      await adminAPI.updateSessionDuration(minutes);
       showMessage('success', 'Durée de session mise à jour avec succès');
       loadSettings();
     } catch (error) {
@@ -45,8 +52,15 @@ function SessionSettings() {
 
   const handleUpdateMaxAttempts = async (e) => {
     e.preventDefault();
+    const attempts = parseInt(maxAttempts);
+    
+    if (attempts < 1 || attempts > 10) {
+      showMessage('error', 'Nombre invalide (1-10 tentatives)');
+      return;
+    }
+
     try {
-      await adminAPI.updateMaxAttempts(parseInt(maxAttempts));
+      await adminAPI.updateDefaultMaxAttempts(attempts);
       showMessage('success', 'Nombre de tentatives mis à jour avec succès');
       loadSettings();
     } catch (error) {
@@ -55,13 +69,22 @@ function SessionSettings() {
     }
   };
 
+  const formatDuration = (minutes) => {
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins === 0 
+      ? `${hours} heure${hours > 1 ? 's' : ''}`
+      : `${hours}h ${mins}min`;
+  };
+
   if (loading) {
     return <div style={styles.loading}>Chargement...</div>;
   }
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Paramètres de sécurité</h2>
+      <h2 style={styles.title}>Paramètres de sécurité globaux</h2>
 
       {message.text && (
         <div style={{
@@ -76,20 +99,20 @@ function SessionSettings() {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Durée de vie des sessions</h3>
         <p style={styles.description}>
-          Définir la durée pendant laquelle une session utilisateur reste active (en heures)
+          Durée d'inactivité avant déconnexion automatique (en minutes)
         </p>
         <form onSubmit={handleUpdateSessionDuration} style={styles.form}>
           <div style={styles.inputGroup}>
             <input
               type="number"
               min="1"
-              max="720"
+              max="1440"
               value={sessionDuration}
               onChange={(e) => setSessionDuration(e.target.value)}
               style={styles.input}
               required
             />
-            <span style={styles.unit}>heures</span>
+            <span style={styles.unit}>minutes</span>
           </div>
           <button type="submit" style={styles.button}>
             Mettre à jour
@@ -97,15 +120,18 @@ function SessionSettings() {
         </form>
         {settings && (
           <div style={styles.currentValue}>
-            Valeur actuelle : {settings.session_duration_hours} heures
+            Valeur actuelle : {formatDuration(settings.session_duration_minutes)}
           </div>
         )}
+        <div style={styles.hint}>
+          💡 Exemples : 5 min, 30 min, 60 min (1h), 1440 min (24h)
+        </div>
       </div>
 
       <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Nombre maximum de tentatives de connexion</h3>
+        <h3 style={styles.sectionTitle}>Nombre maximum de tentatives de connexion (par défaut)</h3>
         <p style={styles.description}>
-          Nombre de tentatives échouées autorisées avant le blocage du compte
+          Nombre de tentatives échouées autorisées avant le blocage du compte (par défaut pour tous les utilisateurs)
         </p>
         <form onSubmit={handleUpdateMaxAttempts} style={styles.form}>
           <div style={styles.inputGroup}>
@@ -126,9 +152,12 @@ function SessionSettings() {
         </form>
         {settings && (
           <div style={styles.currentValue}>
-            Valeur actuelle : {settings.max_login_attempts} tentatives
+            Valeur actuelle : {settings.default_max_login_attempts} tentatives
           </div>
         )}
+        <div style={styles.hint}>
+          💡 Cette valeur est utilisée par défaut. Vous pouvez personnaliser par utilisateur dans l'onglet "Utilisateurs Firebase".
+        </div>
       </div>
     </div>
   );
@@ -210,6 +239,11 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     fontStyle: 'italic',
+  },
+  hint: {
+    marginTop: '8px',
+    fontSize: '13px',
+    color: '#999',
   },
 };
 

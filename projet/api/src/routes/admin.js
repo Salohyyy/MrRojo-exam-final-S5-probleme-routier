@@ -4,24 +4,34 @@ const { verifyFirebaseToken, requireAdmin } = require('../middleware/auth');
 const {
   getSettings,
   updateSessionDuration,
-  updateMaxAttempts,
+  updateDefaultMaxAttempts,
+  getUnsyncedFirebaseUsers,
+  syncFirebaseUserToLocal,
+  syncAllFirebaseUsers,
+  updateUserMaxAttempts,
   getBlockedUsers,
-  unblockUser,
-  getAllUsers
+  unblockUser
 } = require('../controllers/adminController');
 
 // Toutes les routes admin nécessitent authentification + rôle admin
 router.use(verifyFirebaseToken);
 router.use(requireAdmin);
 
-// Paramètres
+// Paramètres globaux
 router.get('/settings', getSettings);
 router.put('/settings/session-duration', updateSessionDuration);
-router.put('/settings/max-attempts', updateMaxAttempts);
+router.put('/settings/max-attempts', updateDefaultMaxAttempts);
 
-// Gestion des utilisateurs
-router.get('/users', getAllUsers);
+// Gestion des utilisateurs Firebase
+router.get('/firebase-users', getUnsyncedFirebaseUsers);
+router.post('/firebase-users/:firebase_uid/sync', syncFirebaseUserToLocal);
+router.post('/firebase-users/sync-all', syncAllFirebaseUsers);
+
+// Paramètres utilisateur spécifique
+router.put('/users/:firebase_uid/max-attempts', updateUserMaxAttempts);
+
+// Gestion des blocages
 router.get('/users/blocked', getBlockedUsers);
-router.post('/users/:uid/unblock', unblockUser);
+router.post('/users/:firebase_uid/unblock', unblockUser);
 
 module.exports = router;
