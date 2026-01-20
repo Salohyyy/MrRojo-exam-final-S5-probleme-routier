@@ -21,11 +21,11 @@ async function testFirestore() {
   try {
     console.log('🔄 Test de connexion à Firestore...');
     
-    // Récupérer la collection reports-traite
-    const snapshot = await db.collection('reports-traite').limit(3).get();
+    // Récupérer la collection report_traites
+    const snapshot = await db.collection('report_traites').limit(3).get();
     
     if (snapshot.empty) {
-      console.log('⚠️  La collection "reports-traite" est vide');
+      console.log('⚠️  La collection "report_traites" est vide');
     } else {
       console.log(`✅ ${snapshot.size} document(s) récupéré(s) avec succès!\n`);
       
@@ -46,7 +46,7 @@ async function testFirestore() {
     console.error('❌ Erreur lors du test Firestore:', error.message);
     console.error('\n💡 Vérifications à faire:');
     console.error('  1. Les credentials Firebase sont-ils corrects?');
-    console.error('  2. Le nom de la collection est-il "reports-traite"?');
+    console.error('  2. Le nom de la collection est-il "report_traites"?');
     console.error('  3. As-tu les permissions de lecture sur Firestore?');
   }
 }

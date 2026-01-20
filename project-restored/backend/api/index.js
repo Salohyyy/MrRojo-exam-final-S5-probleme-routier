@@ -26,7 +26,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test-firebase', async (req, res) => {
   try {
     // On utilise le db déjà importé en haut du fichier
-    const snapshot = await db.collection('reports-traite').limit(1).get();
+    const snapshot = await db.collection('report_traites').limit(1).get();
     res.json({ 
       success: true, 
       message: 'Firebase Firestore opérationnel',
