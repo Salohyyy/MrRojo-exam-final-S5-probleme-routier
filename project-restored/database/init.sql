@@ -92,3 +92,26 @@ CREATE TABLE report_sync_histories (
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (report_sync_id) REFERENCES report_syncs(id)
 );
+
+-- SEED DATA
+
+INSERT INTO roles (name) VALUES ('Admin'), ('Manager');
+INSERT INTO problem_types (name) VALUES ('Nid de poule'), ('Fissure'), ('Glissement'), ('Inondation');
+INSERT INTO report_statuses (name, level) VALUES ('Nouveau', 1), ('En cours', 2), ('Terminé', 3), ('Rejeté', 0);
+INSERT INTO user_statuses (name) VALUES ('Actif'), ('Banni');
+INSERT INTO companies (name, address) VALUES ('Colas', 'Antananarivo'), ('Sogea', 'Antananarivo');
+
+INSERT INTO users (username, email, password, birth_date, user_status_id) VALUES 
+('johndoe', 'john@example.com', 'password', '1990-01-01', 1),
+('janedoe', 'jane@example.com', 'password', '1992-02-02', 1);
+
+-- Reports (Antananarivo coordinates approx: -18.8792, 47.5079)
+INSERT INTO reports (reported_at, longitude, latitude, city, is_synced, report_status_id, problem_type_id, user_id) VALUES
+(NOW(), 47.5079, -18.8792, 'Anala', false, 1, 1, 1),
+(NOW(), 47.5100, -18.8800, 'Arivo', false, 2, 2, 2),
+(NOW(), 47.5200, -18.8700, 'Antavo', false, 1, 1, 1);
+
+-- Report Syncs (Work in progress)
+INSERT INTO report_syncs (surface, budget, progress, report_status_id, company_id, report_id) VALUES
+('50m2', 1500000.00, 0, 1, 1, 1),
+('100m2', 5000000.00, 50, 2, 2, 2);

@@ -1,5 +1,5 @@
-version: "3.9"
 services:
+
   postgres:
     image: postgis/postgis:15-3.3
     container_name: postgres_postgis
@@ -11,21 +11,25 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app-network
 
   api:
-    build: ./api
+    build: ./backend
     container_name: node_api
     ports:
       - "4000:4000"
     depends_on:
       - postgres
     environment:
+      # Base de données
       DB_HOST: postgres
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
+      # Port
+      PORT: 4000
     networks:
       - app-network
 
@@ -41,15 +45,16 @@ services:
       - app-network
 
   web:
-    build: ./web
+    build: 
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: http://localhost:4000/api
     container_name: react_web
     ports:
-      - "3000:3000"  # ← Changé à 3000
+      - "80:80"
     depends_on:
       - api
       - tileserver
-    environment:
-      - CHOKIDAR_USEPOLLING=true
     networks:
       - app-network
 
