@@ -15,8 +15,8 @@ const useReportsTraite = () => {
 
       console.log('🔄 Fetching reports from:', `${API_URL}/reports`);
 
-      // On récupère maintenant les données depuis PostgreSQL (via l'API mise à jour)
-      const response = await fetch(`${API_URL}/reports/postgres`);
+      // On récupère les données depuis Firebase (via l'API originale)
+      const response = await fetch(`${API_URL}/reports`);
       
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);

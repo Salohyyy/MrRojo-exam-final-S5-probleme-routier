@@ -24,7 +24,7 @@ function MapReports() {
   const defaultCenter = [-18.9056, 47.5256];
 
   return (
-    <div style={{ width: '100%', height: '100vh', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif' }}>
       
       {/* Barre de statut élégante */}
       <div style={{ 
@@ -81,11 +81,11 @@ function MapReports() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Wallet size={14} color="#7f8c8d" /> 
-                      <span><strong>Budget:</strong> {report.budget.toLocaleString()} Ar</span>
+                      <span><strong>Budget:</strong> {report.budget ? report.budget.toLocaleString() : 'N/A'} Ar</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Move size={14} color="#7f8c8d" /> 
-                      <span><strong>Surface:</strong> {report.surface} m²</span>
+                      <span><strong>Surface:</strong> {report.surface || 'N/A'} m²</span>
                     </div>
                   </div>
 
@@ -93,11 +93,11 @@ function MapReports() {
                   <div style={{ marginTop: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                       <span>Avancement</span>
-                      <strong>{report.progress}%</strong>
+                      <strong>{report.progress || 0}%</strong>
                     </div>
                     <div style={{ width: '100%', height: '8px', background: '#ecf0f1', borderRadius: '10px' }}>
                       <div style={{ 
-                        width: `${report.progress}%`, height: '100%', 
+                        width: `${report.progress || 0}%`, height: '100%', 
                         background: 'linear-gradient(90deg, #3498db, #2ecc71)', 
                         borderRadius: '10px', transition: 'width 1s ease-in-out'
                       }} />
