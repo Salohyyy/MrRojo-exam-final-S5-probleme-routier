@@ -3,6 +3,7 @@ const pool = require('../config/database');
 const { db } = require('../config/firebase');
 const admin = require('firebase-admin');
 const { syncUserToPostgres, syncDownload, syncUpload } = require('../utils/syncHelper');
+const reportSyncModel = require('../models/reportSyncModel');
 
 async function createReport(req, res) {
   const { longitude, latitude, city, problemTypeId } = req.body;

@@ -1,0 +1,1 @@
+ALTER TABLE report_syncs ADD COLUMN IF NOT EXISTS sent_to_firebase BOOLEAN DEFAULT FALSE;

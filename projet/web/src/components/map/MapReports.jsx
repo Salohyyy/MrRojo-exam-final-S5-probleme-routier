@@ -61,8 +61,11 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
 
       <MapContainer center={defaultCenter} zoom={13} style={{ width: '100%', height: '100%' }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="http://localhost:8080/styles/basic-preview/{z}/{x}/{y}.png"
+          onError={(e) => {
+            e.target.src = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"; // Fallback online
+          }}
         />
 
         {reports.map((report) => {

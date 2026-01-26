@@ -42,6 +42,11 @@ async function checkLoginAttempts(req, res) {
     res.json({ canLogin: true, attemptsLeft });
 
   } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      // Si l'utilisateur n'existe pas, on permet "la tentative" (qui échouera via Firebase de toute façon)
+      // sans vérifier la base de données locale
+      return res.json({ canLogin: true, attemptsLeft: 3 }); 
+    }
     console.error('Erreur checkLoginAttempts:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -68,6 +73,19 @@ async function recordFailedAttempt(req, res) {
       [uid]
     );
 
+    // Si l'utilisateur n'est pas encore suivi (ex: première tentative échouée après création manuelle)
+    if (result.rows.length === 0) {
+        // On l'ajoute au tracking
+        await pool.query(
+            'INSERT INTO user_auth_tracking (uid, email, failed_attempts, last_attempt_at) VALUES ($1, $2, 1, CURRENT_TIMESTAMP)',
+            [uid, email]
+        );
+        return res.json({ 
+            blocked: false, 
+            attemptsLeft: maxAttempts - 1 
+        });
+    }
+
     const failedAttempts = result.rows[0].failed_attempts;
 
     // Bloquer si limite atteinte
@@ -90,6 +108,12 @@ async function recordFailedAttempt(req, res) {
     });
 
   } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+        return res.json({ 
+            blocked: false, 
+            attemptsLeft: 3 // Valeur par défaut si user inconnu
+        });
+    }
     console.error('Erreur recordFailedAttempt:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
