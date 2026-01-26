@@ -1,0 +1,61 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: postgres_postgis
+    environment:
+      POSTGRES_DB: routes_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  api:
+    build: ./api
+    container_name: node_api
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_NAME: routes_db
+      DB_USER: admin
+      DB_PASSWORD: admin
+    networks:
+      - app-network
+
+  tileserver:
+    image: maptiler/tileserver-gl
+    container_name: offline_map
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./maps:/data
+    command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
+    networks:
+      - app-network
+
+  web:
+    build: ./web
+    container_name: react_web
+    ports:
+      - "3000:3000"  # ← Changé à 3000
+    depends_on:
+      - api
+      - tileserver
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
