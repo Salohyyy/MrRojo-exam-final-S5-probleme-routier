@@ -9,3 +9,6 @@ doc/
 projet/api/firebase-credentials.json
 projet/api/config/firebase-credentials.json
 
+firebase-credentials.json
+api/firebase-credentials.json
+api/config/firebase-credentials.json
