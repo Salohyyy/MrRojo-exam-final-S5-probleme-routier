@@ -3,3 +3,8 @@
 node_modules/
 
 firebase.json
+back/
+doc/
+
+projet/api/firebase-credentials.json
+
