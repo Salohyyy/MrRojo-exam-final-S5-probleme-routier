@@ -1,5 +1,5 @@
 .env
-*.json  # Les fichiers de credentials Firebase
+*.json 
 node_modules/
 
 firebase.json
