@@ -100,6 +100,7 @@ projet/
 └── maps/
     └── osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles
 ```
+<<<<<<< HEAD
 
 ### 3. Démarrage
 
@@ -242,3 +243,5 @@ npm run dev
 ```
 
 Modifiez `VITE_API_URL` dans `.env` pour pointer vers `http://localhost:4000`
+=======
+>>>>>>> parent of bdc14c1 (miaraka amin'ilay an tsiory(naverina)- API)

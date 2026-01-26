@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { authAPI } from '../services/api';
 
-function Login() {
+function Login({ onVisitorClick }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -101,6 +101,24 @@ function Login() {
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
+          
+          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+            <span style={{ color: '#666', fontSize: '0.9rem' }}>Ou </span>
+            <button 
+              type="button" 
+              onClick={onVisitorClick}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: '#3498db', 
+                textDecoration: 'underline', 
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              Visiter le site sans connexion
+            </button>
+          </div>
         </form>
       </div>
     </div>

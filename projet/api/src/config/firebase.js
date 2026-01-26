@@ -4,26 +4,44 @@ let firebaseApp;
 let db;
 
 try {
-  // Charger les credentials depuis le fichier JSON
-  const serviceAccount = require('./firebase-credentials.json');
+  const serviceAccount = require('/app/firebase-credentials.json');
 
   firebaseApp = admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
 
-  // AJOUTER CETTE LIGNE : Initialiser Firestore
   db = admin.firestore();
 
   console.log('✓ Firebase Admin initialisé');
-  console.log('✓ Firestore initialisé');
+
+  // --- FONCTION DE TEST DES COLLECTIONS ---
+  const testFirestore = async () => {
+    try {
+      console.log('🔍 Test de connexion Firestore en cours...');
+      const collections = await db.listCollections();
+      
+      if (collections.length === 0) {
+        console.log('⚠️ Firestore connecté, mais AUCUNE collection trouvée.');
+      } else {
+        const names = collections.map(col => col.id).join(', ');
+        console.log(`✅ Collections Firestore trouvées : [ ${names} ]`);
+      }
+    } catch (err) {
+      console.error('❌ Erreur lors du listing des collections :', err.message);
+      // C'est ici que l'erreur 16 UNAUTHENTICATED réapparaîtra si l'heure est mauvaise
+    }
+  };
+
+  testFirestore();
+  // ----------------------------------------
+
 } catch (error) {
   console.error('Erreur initialisation Firebase:', error.message);
-  throw error;
 }
- 
+
 module.exports = {
-  auth: admin.auth(),
-  db, 
+  get auth() { return admin.auth(); },
+  get db() { return db; },
   admin,
   firebaseApp
 };

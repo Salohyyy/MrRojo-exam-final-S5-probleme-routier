@@ -5,7 +5,7 @@ const {
   getReportStatuses,
   updateReportSyncStatus,
   syncAllToFirebase
-} = require('../controllers/manager.controller');
+} = require('../controllers/managerController');
 
 router.get('/report-syncs', getReportSyncs);
 router.put('/report-syncs/:id/status', updateReportSyncStatus);

@@ -1,5 +1,6 @@
 import React from 'react';
 import MapReports from './components/map/MapReports';
+<<<<<<< HEAD
 import DashboardStats from './components/stats/DashboardStats';
 import { LayoutDashboard } from 'lucide-react';
 
@@ -51,6 +52,14 @@ function App() {
       }}>
         <MapReports />
       </div>
+=======
+
+function App() {
+  return (
+    <div>
+      <h1>Carte des problèmes routiers</h1>
+      <MapReports />
+>>>>>>> parent of bdc14c1 (miaraka amin'ilay an tsiory(naverina)- API)
     </div>
   );
 }

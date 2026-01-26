@@ -1,7 +1,4 @@
-version: "3.9"
-
 services:
-
   postgres:
     image: postgis/postgis:15-3.3
     container_name: postgres_postgis
@@ -31,6 +28,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      TZ: UTC
       NODE_ENV: production
       PORT: 4000
       DB_HOST: postgres
@@ -38,11 +36,10 @@ services:
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
-      # Ajoutez vos credentials Firebase ici
-      FIREBASE_PROJECT_ID: your-project-id
-      FIREBASE_PRIVATE_KEY: your-private-key
-      FIREBASE_CLIENT_EMAIL: your-client-email
+      # Variables pour le SDK Admin Firebase (Backend)
+      FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
     volumes:
+      # On monte le fichier de credentials que vous avez téléchargé
       - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
     networks:
       - app-network
@@ -58,12 +55,12 @@ services:
     command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
     networks:
       - app-network
-    restart: unless-stopped
 
   web:
     build:
       context: ./web
       args:
+        # On passe les variables au build de Vite
         VITE_API_URL: http://localhost:4000
         VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
         VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
@@ -76,7 +73,6 @@ services:
       - "80:80"
     depends_on:
       - api
-      - tileserver
     networks:
       - app-network
     restart: unless-stopped

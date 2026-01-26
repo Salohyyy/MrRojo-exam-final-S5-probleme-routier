@@ -7,4 +7,5 @@ back/
 doc/
 
 projet/api/firebase-credentials.json
+projet/api/config/firebase-credentials.json
 
