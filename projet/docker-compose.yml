@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   postgres:
     image: postgis/postgis:15-3.3
@@ -11,6 +10,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d routes_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
@@ -20,14 +25,25 @@ services:
     ports:
       - "4000:4000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
+      TZ: UTC
+      NODE_ENV: production
+      PORT: 4000
       DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
+      # Variables pour le SDK Admin Firebase (Backend)
+      FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+    volumes:
+      # On monte le fichier de credentials que vous avez téléchargé
+      - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
     networks:
       - app-network
+    restart: unless-stopped
 
   tileserver:
     image: maptiler/tileserver-gl
@@ -41,17 +57,25 @@ services:
       - app-network
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        # On passe les variables au build de Vite
+        VITE_API_URL: http://localhost:4000
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
     container_name: react_web
     ports:
-      - "3000:3000"  # ← Changé à 3000
+      - "80:80"
     depends_on:
       - api
-      - tileserver
-    environment:
-      - CHOKIDAR_USEPOLLING=true
     networks:
       - app-network
+    restart: unless-stopped
 
 volumes:
   pgdata:

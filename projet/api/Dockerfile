@@ -1,7 +1,9 @@
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+# On installe tout pour le build, ou seulement production
+RUN npm install --production
 COPY . .
 EXPOSE 4000
-CMD ["node", "index.js"]
+# Vérifiez si votre fichier est dans src/index.js ou api/index.js
+CMD ["node", "src/index.js"]
