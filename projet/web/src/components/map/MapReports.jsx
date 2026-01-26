@@ -19,13 +19,35 @@ const getMarkerIcon = (type) => {
   });
 };
 
-function MapReports() {
+function MapReports({ showAdminButton, onAdminButtonClick }) {
   const { reports, loading, error } = useReportsTraite();
   const defaultCenter = [-18.9056, 47.5256];
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif' }}>
       
+      {showAdminButton && (
+        <button 
+            onClick={onAdminButtonClick}
+            style={{
+                position: 'absolute',
+                top: 80,
+                right: 20,
+                zIndex: 1000,
+                padding: '12px 24px',
+                backgroundColor: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+            }}
+        >
+            🛠️ Gérer les Chantiers
+        </button>
+      )}
+
       {/* Barre de statut élégante */}
       <div style={{ 
         position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',

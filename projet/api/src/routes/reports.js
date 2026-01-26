@@ -8,13 +8,17 @@ const {
   updateReport,
   uploadReport,
   uploadAllReports,
-  syncDownload
+  syncDownload,
+  getReportSyncs,
+  updateReportSyncStatus
 } = require('../controllers/reportController');
 
 // Routes mobiles (utilisateurs)
 router.post('/create', verifyFirebaseToken, createReport);
 
 // Routes managers
+router.get('/syncs', verifyFirebaseToken, getReportSyncs);
+router.put('/syncs/:id/status', verifyFirebaseToken, updateReportSyncStatus);
 router.get('/local', verifyFirebaseToken, getAllReports);
 router.get('/local/:id', verifyFirebaseToken, getReportById);
 router.put('/local/:id', verifyFirebaseToken, updateReport);

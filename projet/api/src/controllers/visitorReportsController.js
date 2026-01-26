@@ -1,6 +1,18 @@
 const { db } = require('../config/firebase');
 const { pool } = require('../config/database');
 const { getReports } = require('../metiers/reportService');
+const reportSyncModel = require('../models/reportSyncModel');
+
+// GET /api/visitor/reports/syncs
+const getReportSyncs = async (req, res) => {
+  try {
+    const reportSyncs = await reportSyncModel.getAllReportSyncs();
+    res.json(reportSyncs);
+  } catch (error) {
+    console.error('Error fetching visitor report syncs:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 // GET /api/reports
 // Récupère tous les signalements depuis Firebase (ancienne version)
@@ -131,5 +143,6 @@ module.exports = {
   getAllReports,
   getAllReportsFromPostgres,
   getReportById,
-  getReportsByCity
+  getReportsByCity,
+  getReportSyncs
 };

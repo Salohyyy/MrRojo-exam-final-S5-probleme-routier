@@ -7,6 +7,7 @@ import BlockedUsers from './components/BlockedUsers';
 import ManagerDashboard from './components/ManagerDashboard';
 import MapReports from './components/map/MapReports';
 import DashboardStats from './components/stats/DashboardStats';
+import ReportSyncs from './components/ReportSyncs';
 import { LayoutDashboard } from 'lucide-react';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewMode, setViewMode] = useState('login'); // 'login', 'visitor', 'admin'
+  const [visitorView, setVisitorView] = useState('map'); // 'map', 'table'
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -86,39 +88,66 @@ function App() {
               </span>
             </div>
           </div>
-          <button onClick={handleBackToLogin} style={{
-             padding: '8px 16px',
-             borderRadius: '6px',
-             border: '1px solid #ddd',
-             backgroundColor: 'white',
-             cursor: 'pointer',
-             fontWeight: '500'
-          }}>
-            Connexion
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setVisitorView(visitorView === 'map' ? 'table' : 'map')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #3498db',
+                backgroundColor: visitorView === 'map' ? 'white' : '#3498db',
+                color: visitorView === 'map' ? '#3498db' : 'white',
+                cursor: 'pointer',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {visitorView === 'map' ? '📊 Voir tableau récap' : '🗺️ Voir la carte'}
+            </button>
+            <button onClick={handleBackToLogin} style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid #ddd',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}>
+              Connexion
+            </button>
+          </div>
         </header>
 
-        {/* Stats Section */}
-        <div style={{ 
-          flex: '0 0 auto', 
-          zIndex: 10,
-          padding: '1rem 2rem 0 2rem'
-        }}>
-          <DashboardStats />
-        </div>
+        {visitorView === 'map' ? (
+          <>
+            {/* Stats Section */}
+            <div style={{ 
+              flex: '0 0 auto', 
+              zIndex: 10,
+              padding: '1rem 2rem 0 2rem'
+            }}>
+              <DashboardStats />
+            </div>
 
-        {/* Map Section */}
-        <div style={{ 
-          flex: '1', 
-          position: 'relative', 
-          margin: '1rem 2rem 2rem 2rem',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-          border: '1px solid rgba(0,0,0,0.05)'
-        }}>
-          <MapReports />
-        </div>
+            {/* Map Section */}
+            <div style={{ 
+              flex: '1', 
+              position: 'relative', 
+              margin: '1rem 2rem 2rem 2rem',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)'
+            }}>
+              <MapReports />
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <ReportSyncs readOnly={true} />
+          </div>
+        )}
       </div>
     );
   }
@@ -165,12 +194,39 @@ function App() {
           >
             Utilisateurs bloqués
           </button>
+          <button
+            onClick={() => setActiveTab('map')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'map' ? styles.tabActive : {})
+            }}
+          >
+            Carte
+          </button>
+          <button
+            onClick={() => setActiveTab('report-syncs')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'report-syncs' ? styles.tabActive : {})
+            }}
+          >
+            Suivi Chantiers
+          </button>
         </div>
 
         <div style={styles.content}>
           {activeTab === 'dashboard' && <ManagerDashboard />}
           {activeTab === 'settings' && <SessionSettings />}
           {activeTab === 'blocked' && <BlockedUsers />}
+          {activeTab === 'map' && (
+            <div style={{ height: 'calc(100vh - 200px)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <MapReports 
+                showAdminButton={true} 
+                onAdminButtonClick={() => setActiveTab('report-syncs')} 
+              />
+            </div>
+          )}
+          {activeTab === 'report-syncs' && <ReportSyncs />}
         </div>
       </div>
     );

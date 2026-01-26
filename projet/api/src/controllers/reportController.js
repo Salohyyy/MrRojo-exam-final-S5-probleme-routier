@@ -263,6 +263,37 @@ async function syncDownloadReports(req, res) {
   }
 }
 
+async function getReportSyncs(req, res) {
+  try {
+    const syncs = await reportSyncModel.getAllReportSyncs();
+    res.json(syncs);
+  } catch (err) {
+    console.error('Erreur getReportSyncs:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
+
+async function updateReportSyncStatus(req, res) {
+  const { id } = req.params;
+  const { report_status_id, progress } = req.body;
+  
+  try {
+    const updatedSync = await reportSyncModel.updateReportSyncStatus(id, report_status_id, progress);
+    
+    if (!updatedSync) {
+      return res.status(404).json({ error: 'Report sync non trouvé' });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: updatedSync,
+      message: 'Statut mis à jour'
+    });
+  } catch (err) {
+    console.error('Erreur updateReportSyncStatus:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
 
 module.exports = {
   createReport,
@@ -271,5 +302,7 @@ module.exports = {
   updateReport,
   uploadReport,
   uploadAllReports,
-  syncDownload: syncDownloadReports
+  syncDownload: syncDownloadReports,
+  getReportSyncs,
+  updateReportSyncStatus
 };

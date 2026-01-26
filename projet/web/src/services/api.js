@@ -41,6 +41,9 @@ export const reportsAPI = {
   uploadReport: (id) => api.post(`/api/reports/local/${id}/upload`),
   uploadAllReports: () => api.post('/api/reports/sync/upload'),
   syncDownload: () => api.post('/api/reports/sync/download'),
+  getReportSyncs: () => api.get('/api/reports/syncs'),
+  getPublicReportSyncs: () => api.get('/api/visitor/reports/syncs'),
+  updateReportSyncStatus: (id, statusId, progress) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, progress }),
 };
 
 export const utilsAPI = { 
