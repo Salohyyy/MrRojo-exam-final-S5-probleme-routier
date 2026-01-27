@@ -5,8 +5,6 @@ function FirebaseUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [syncingUser, setSyncingUser] = useState(null);
-  const [syncingAll, setSyncingAll] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -29,52 +27,16 @@ function FirebaseUsers() {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
-  const handleSyncUser = async (firebase_uid) => {
-    setSyncingUser(firebase_uid);
-    try {
-      await adminAPI.syncFirebaseUser(firebase_uid, {
-        username: null, // Utilisera le displayName ou email
-        birth_date: null,
-        user_status_id: 1 // Active
-      });
-      showMessage('success', 'Utilisateur synchronisé avec succès');
-      loadUsers();
-    } catch (error) {
-      console.error('Erreur sync:', error);
-      showMessage('error', error.response?.data?.error || 'Erreur lors de la synchronisation');
-    } finally {
-      setSyncingUser(null);
-    }
-  };
-
-  const handleSyncAll = async () => {
-    if (!confirm('Synchroniser tous les utilisateurs Firebase non synchronisés ?')) {
-      return;
-    }
-
-    setSyncingAll(true);
-    try {
-      const response = await adminAPI.syncAllFirebaseUsers();
-      showMessage('success', `${response.data.syncedCount} utilisateur(s) synchronisé(s)`);
-      loadUsers();
-    } catch (error) {
-      console.error('Erreur sync all:', error);
-      showMessage('error', 'Erreur lors de la synchronisation');
-    } finally {
-      setSyncingAll(false);
-    }
-  };
-
-  const handleUpdateMaxAttempts = async (firebase_uid) => {
-    const currentUser = users.find(u => u.firebase_uid === firebase_uid);
-    const currentValue = currentUser?.maxLoginAttempts || '';
+  const handleUpdateMaxAttempts = async (uid, currentEmail) => {
+    const currentUser = users.find(u => u.uid === uid);
+    const currentValue = currentUser?.customMaxAttempts || '';
     
     const input = prompt(
-      `Nombre de tentatives pour ${currentUser.email}\n(Laisser vide pour utiliser la valeur par défaut)`,
+      `Nombre de tentatives pour ${currentEmail}\n(Laisser vide pour utiliser la valeur par défaut globale)`,
       currentValue
     );
 
-    if (input === null) return;
+    if (input === null) return; // Annulé
 
     const maxAttempts = input === '' ? null : parseInt(input);
 
@@ -84,35 +46,31 @@ function FirebaseUsers() {
     }
 
     try {
-      await adminAPI.updateUserMaxAttempts(firebase_uid, maxAttempts);
-      showMessage('success', 'Paramètres mis à jour');
+      await adminAPI.updateUserMaxAttempts(uid, maxAttempts);
+      showMessage('success', 'Paramètres mis à jour avec succès');
       loadUsers();
     } catch (error) {
       console.error('Erreur:', error);
-      showMessage('error', 'Erreur lors de la mise à jour');
+      showMessage('error', error.response?.data?.error || 'Erreur lors de la mise à jour');
     }
   };
 
   if (loading) {
-    return <div style={styles.loading}>Chargement...</div>;
+    return <div style={styles.loading}>Chargement des utilisateurs Firebase...</div>;
   }
-
-  const unsyncedUsers = users.filter(u => !u.isSyncedToLocal);
-  const syncedUsers = users.filter(u => u.isSyncedToLocal);
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Utilisateurs Firebase</h2>
-        {unsyncedUsers.length > 0 && (
-          <button
-            onClick={handleSyncAll}
-            disabled={syncingAll}
-            style={styles.syncAllButton}
-          >
-            {syncingAll ? 'Synchronisation...' : `Synchroniser tout (${unsyncedUsers.length})`}
-          </button>
-        )}
+        <h2 style={styles.title}>🔥 Utilisateurs Firebase</h2>
+        <button onClick={loadUsers} style={styles.refreshButton}>
+          🔄 Actualiser
+        </button>
+      </div>
+
+      <div style={styles.info}>
+        <strong>ℹ️ Information :</strong> Ces utilisateurs sont stockés uniquement dans Firebase. 
+        Les paramètres de sécurité sont stockés dans Firebase Firestore.
       </div>
 
       {message.text && (
@@ -125,84 +83,72 @@ function FirebaseUsers() {
         </div>
       )}
 
-      {unsyncedUsers.length > 0 && (
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Non synchronisés ({unsyncedUsers.length})</h3>
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Nom</th>
-                  <th style={styles.th}>Créé le</th>
-                  <th style={styles.th}>Actions</th>
+      {users.length === 0 ? (
+        <div style={styles.empty}>
+          <p>Aucun utilisateur Firebase trouvé</p>
+          <p style={styles.emptyHint}>Créez des utilisateurs dans Firebase Console</p>
+        </div>
+      ) : (
+        <div style={styles.tableContainer}>
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.tableHeader}>
+                <th style={styles.th}>Email</th>
+                <th style={styles.th}>Nom</th>
+                <th style={styles.th}>Créé le</th>
+                <th style={styles.th}>Tentatives max</th>
+                <th style={styles.th}>Échecs</th>
+                <th style={styles.th}>Statut</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.uid} style={styles.tableRow}>
+                  <td style={styles.td}>{user.email}</td>
+                  <td style={styles.td}>{user.displayName || '-'}</td>
+                  <td style={styles.td}>
+                    {new Date(user.createdAt).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td style={styles.td}>
+                    {user.customMaxAttempts !== null 
+                      ? <strong style={{color: '#ff9800'}}>{user.customMaxAttempts} (personnalisé)</strong>
+                      : <span style={{color: '#999'}}>Par défaut</span>
+                    }
+                  </td>
+                  <td style={styles.td}>
+                    <span style={{
+                      color: user.failedAttempts > 0 ? '#f44336' : '#4caf50'
+                    }}>
+                      {user.failedAttempts}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    {user.isBlocked ? (
+                      <span style={styles.blockedBadge}>🚫 Bloqué</span>
+                    ) : (
+                      <span style={styles.activeBadge}>✅ Actif</span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    <button
+                      onClick={() => handleUpdateMaxAttempts(user.uid, user.email)}
+                      style={styles.editButton}
+                      title="Modifier le nombre de tentatives"
+                    >
+                      ⚙️ Modifier
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {unsyncedUsers.map((user) => (
-                  <tr key={user.firebase_uid} style={styles.tableRow}>
-                    <td style={styles.td}>{user.email}</td>
-                    <td style={styles.td}>{user.displayName || '-'}</td>
-                    <td style={styles.td}>{new Date(user.createdAt).toLocaleDateString('fr-FR')}</td>
-                    <td style={styles.td}>
-                      <button
-                        onClick={() => handleSyncUser(user.firebase_uid)}
-                        disabled={syncingUser === user.firebase_uid}
-                        style={styles.syncButton}
-                      >
-                        {syncingUser === user.firebase_uid ? 'Sync...' : 'Synchroniser'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {syncedUsers.length > 0 && (
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Synchronisés ({syncedUsers.length})</h3>
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Nom</th>
-                  <th style={styles.th}>ID Local</th>
-                  <th style={styles.th}>Max Tentatives</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {syncedUsers.map((user) => (
-                  <tr key={user.firebase_uid} style={styles.tableRow}>
-                    <td style={styles.td}>{user.email}</td>
-                    <td style={styles.td}>{user.displayName || '-'}</td>
-                    <td style={styles.td}>#{user.localUserId}</td>
-                    <td style={styles.td}>
-                      {user.maxLoginAttempts !== null ? user.maxLoginAttempts : 'Par défaut'}
-                    </td>
-                    <td style={styles.td}>
-                      <button
-                        onClick={() => handleUpdateMaxAttempts(user.firebase_uid)}
-                        style={styles.editButton}
-                      >
-                        Modifier tentatives
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {users.length === 0 && (
-        <div style={styles.empty}>Aucun utilisateur Firebase trouvé</div>
-      )}
+      <div style={styles.footer}>
+        <strong>Total :</strong> {users.length} utilisateur(s) Firebase
+      </div>
     </div>
   );
 }
@@ -218,7 +164,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '24px',
+    marginBottom: '16px',
   },
   loading: {
     textAlign: 'center',
@@ -230,8 +176,8 @@ const styles = {
     fontWeight: '600',
     color: '#333',
   },
-  syncAllButton: {
-    padding: '10px 20px',
+  refreshButton: {
+    padding: '8px 16px',
     backgroundColor: '#2196f3',
     color: '#fff',
     border: 'none',
@@ -240,23 +186,33 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
   },
+  info: {
+    padding: '12px 16px',
+    backgroundColor: '#e3f2fd',
+    color: '#1565c0',
+    borderRadius: '4px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
   message: {
     padding: '12px 16px',
     borderRadius: '4px',
-    marginBottom: '24px',
+    marginBottom: '16px',
     fontSize: '14px',
   },
-  section: {
-    marginBottom: '32px',
+  empty: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#999',
   },
-  sectionTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    marginBottom: '16px',
-    color: '#555',
+  emptyHint: {
+    fontSize: '14px',
+    marginTop: '8px',
+    color: '#bbb',
   },
   tableContainer: {
     overflowX: 'auto',
+    marginBottom: '16px',
   },
   table: {
     width: '100%',
@@ -268,7 +224,7 @@ const styles = {
   th: {
     padding: '12px 16px',
     textAlign: 'left',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '600',
     color: '#555',
     borderBottom: '2px solid #e0e0e0',
@@ -281,18 +237,26 @@ const styles = {
     fontSize: '14px',
     color: '#333',
   },
-  syncButton: {
-    padding: '6px 16px',
-    backgroundColor: '#4caf50',
-    color: '#fff',
-    border: 'none',
+  blockedBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    backgroundColor: '#ffebee',
+    color: '#c62828',
     borderRadius: '4px',
-    fontSize: '13px',
-    fontWeight: '500',
-    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  activeBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    backgroundColor: '#e8f5e9',
+    color: '#2e7d32',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   editButton: {
-    padding: '6px 16px',
+    padding: '6px 12px',
     backgroundColor: '#ff9800',
     color: '#fff',
     border: 'none',
@@ -301,10 +265,12 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
   },
-  empty: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#999',
+  footer: {
+    padding: '12px 16px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '4px',
+    fontSize: '14px',
+    color: '#666',
   },
 };
 

@@ -1,4 +1,4 @@
--- Tables existantes (votre base)
+-- Tables existantes (votre base - inchangées)
 CREATE TABLE IF NOT EXISTS roles (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(50)
@@ -26,22 +26,22 @@ CREATE TABLE IF NOT EXISTS user_statuses (
     name VARCHAR(50)
 );
 
--- Table employees MODIFIÉE pour Firebase
+-- Table employees pour authentification LOCALE (mot de passe en clair)
 CREATE TABLE IF NOT EXISTS employees (
     id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(255) UNIQUE,
-    username VARCHAR(50),
-    email VARCHAR(50) UNIQUE,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL, -- Mot de passe en clair
     birth_date DATE,
     role_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
--- Table users MODIFIÉE pour Firebase
+-- Table users (vide ou pour données métier uniquement, PAS pour auth)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(255) UNIQUE,
     username VARCHAR(50),
     email VARCHAR(50) UNIQUE,
     birth_date DATE,
@@ -98,62 +98,9 @@ CREATE TABLE IF NOT EXISTS report_sync_histories (
     FOREIGN KEY (report_sync_id) REFERENCES report_syncs(id)
 );
 
--- NOUVELLES TABLES pour la gestion de l'authentification
-
--- Paramètres globaux de sécurité
-CREATE TABLE IF NOT EXISTS auth_settings (
-    id SERIAL PRIMARY KEY,
-    session_duration_minutes INTEGER NOT NULL DEFAULT 30, -- En minutes maintenant
-    default_max_login_attempts INTEGER NOT NULL DEFAULT 3,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Paramètres personnalisés par utilisateur
-CREATE TABLE IF NOT EXISTS user_auth_settings (
-    id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(255) UNIQUE NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    max_login_attempts INTEGER, -- NULL = utiliser la valeur par défaut
-    is_synced_to_local BOOLEAN DEFAULT FALSE, -- Si synchronisé dans la table users
-    local_user_id BIGINT, -- ID dans la table users si synchronisé
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (local_user_id) REFERENCES users(id) ON DELETE SET NULL
-);
-
--- Suivi des tentatives de connexion
-CREATE TABLE IF NOT EXISTS login_attempts (
-    id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    failed_attempts INTEGER DEFAULT 0,
-    is_blocked BOOLEAN DEFAULT FALSE,
-    blocked_at TIMESTAMP,
-    last_attempt_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Sessions actives (pour le suivi uniquement, pas pour l'authentification)
-CREATE TABLE IF NOT EXISTS active_sessions (
-    id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    session_started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_activity_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE
-);
-
 -- Index pour améliorer les performances
-CREATE INDEX IF NOT EXISTS idx_user_auth_settings_uid ON user_auth_settings(firebase_uid);
-CREATE INDEX IF NOT EXISTS idx_user_auth_settings_synced ON user_auth_settings(is_synced_to_local);
-CREATE INDEX IF NOT EXISTS idx_login_attempts_uid ON login_attempts(firebase_uid);
-CREATE INDEX IF NOT EXISTS idx_login_attempts_blocked ON login_attempts(is_blocked);
-CREATE INDEX IF NOT EXISTS idx_active_sessions_uid ON active_sessions(firebase_uid);
-CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON active_sessions(is_active);
-CREATE INDEX IF NOT EXISTS idx_employees_firebase_uid ON employees(firebase_uid);
-CREATE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid);
+CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
+CREATE INDEX IF NOT EXISTS idx_employees_username ON employees(username);
 
 -- Fonction pour mettre à jour updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -164,25 +111,72 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers
-CREATE TRIGGER update_auth_settings_updated_at 
-    BEFORE UPDATE ON auth_settings
+-- Trigger pour employees
+CREATE TRIGGER update_employees_updated_at 
+    BEFORE UPDATE ON employees
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_user_auth_settings_updated_at 
-    BEFORE UPDATE ON user_auth_settings
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- ============================================
+-- DONNÉES INITIALES
+-- ============================================
 
-CREATE TRIGGER update_login_attempts_updated_at 
-    BEFORE UPDATE ON login_attempts
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Insérer les rôles
+INSERT INTO roles (name) VALUES 
+    ('admin'), 
+    ('employee') 
+ON CONFLICT DO NOTHING;
 
--- Données initiales
-INSERT INTO auth_settings (session_duration_minutes, default_max_login_attempts) 
-VALUES (30, 3) ON CONFLICT DO NOTHING;
+-- Insérer les statuts utilisateur
+INSERT INTO user_statuses (name) VALUES 
+    ('active'), 
+    ('inactive'), 
+    ('blocked') 
+ON CONFLICT DO NOTHING;
 
--- Insérer les rôles par défaut
-INSERT INTO roles (name) VALUES ('admin'), ('employee') ON CONFLICT DO NOTHING;
+-- ============================================
+-- CRÉER L'EMPLOYÉ ADMIN PAR DÉFAUT
+-- ============================================
+-- Username: admin
+-- Email: admin@example.com
+-- Password: admin123
+-- ============================================
 
--- Insérer les statuts utilisateur par défaut
-INSERT INTO user_statuses (name) VALUES ('active'), ('inactive'), ('blocked') ON CONFLICT DO NOTHING;
+DO $$
+DECLARE
+    admin_role_id BIGINT;
+BEGIN
+    -- Récupérer l'ID du rôle admin
+    SELECT id INTO admin_role_id FROM roles WHERE name = 'admin';
+    
+    -- Créer l'employé admin s'il n'existe pas
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('admin', 'admin@example.com', 'admin123', admin_role_id)
+    ON CONFLICT (username) DO NOTHING;
+    
+    -- Afficher un message (visible dans les logs Docker)
+    RAISE NOTICE '✅ Employé admin créé : username=admin, password=admin123';
+END $$;
+
+-- ============================================
+-- EXEMPLES : Ajouter d'autres employés
+-- ============================================
+-- Décommentez et modifiez selon vos besoins
+
+/*
+DO $$
+DECLARE
+    employee_role_id BIGINT;
+BEGIN
+    SELECT id INTO employee_role_id FROM roles WHERE name = 'employee';
+    
+    -- Employé simple
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('employe1', 'employe1@example.com', 'password123', employee_role_id)
+    ON CONFLICT (username) DO NOTHING;
+    
+    -- Admin supplémentaire
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('superadmin', 'super@example.com', 'super123', (SELECT id FROM roles WHERE name = 'admin'))
+    ON CONFLICT (username) DO NOTHING;
+END $$;
+*/

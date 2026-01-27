@@ -1,42 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './config/firebase';
+import { employeeAPI } from './services/api';
 import Login from './components/Login';
+import UserLogin from './components/UserLogin';
 import SessionSettings from './components/SessionSettings';
 import BlockedUsers from './components/BlockedUsers';
 import FirebaseUsers from './components/FirebaseUsers';
-import UserLogin from './components/UserLogin';
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('settings');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [showUserInterface, setShowUserInterface] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      
-      if (currentUser) {
-        const token = await currentUser.getIdToken();
-        localStorage.setItem('firebaseToken', token);
-        
-        // Vérifier si l'utilisateur a les droits admin
-        const idTokenResult = await currentUser.getIdTokenResult();
-        setIsAdmin(idTokenResult.claims.admin === true);
-      } else {
-        setIsAdmin(false);
-      }
-    });
-
-    return unsubscribe;
+    checkEmployeeAuth();
   }, []);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    localStorage.removeItem('firebaseToken');
+  const checkEmployeeAuth = async () => {
+    const token = localStorage.getItem('employeeToken');
+    
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await employeeAPI.verify();
+      setEmployee(response.data.employee);
+    } catch (error) {
+      console.error('Token invalide:', error);
+      localStorage.removeItem('employeeToken');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoginSuccess = (employeeData) => {
+    setEmployee(employeeData);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('employeeToken');
+    setEmployee(null);
     setShowUserInterface(false);
   };
 
@@ -48,37 +53,51 @@ function App() {
     );
   }
 
-  // Interface utilisateur pour tester la connexion
-  if (showUserInterface || (!user && !isAdmin)) {
+  // Afficher l'interface utilisateur (test Firebase)
+  if (showUserInterface) {
     return (
       <div>
-        <div style={styles.switchButton}>
+        <div style={styles.switchButtonContainer}>
           <button 
-            onClick={() => setShowUserInterface(!showUserInterface)}
-            style={styles.switchBtn}
+            onClick={() => setShowUserInterface(false)}
+            style={styles.switchButton}
           >
-            {showUserInterface ? '🔐 Interface Admin' : '👤 Interface Utilisateur (Test)'}
+            🔙 Retour interface Admin
           </button>
         </div>
-        {showUserInterface ? <UserLogin /> : <Login />}
+        <UserLogin />
       </div>
     );
   }
 
-  if (!user) {
-    return <Login />;
+  // Si pas connecté, afficher le login employé
+  if (!employee) {
+    return (
+      <div>
+        <div style={styles.switchButtonContainer}>
+          <button 
+            onClick={() => setShowUserInterface(true)}
+            style={styles.switchButton}
+          >
+            👤 Interface Utilisateur (Test)
+          </button>
+        </div>
+        <Login onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
   }
 
-  if (!isAdmin) {
+  // Vérifier le rôle admin
+  if (employee.role !== 'admin') {
     return (
       <div style={styles.accessDenied}>
         <div style={styles.accessDeniedCard}>
           <h1 style={styles.accessDeniedTitle}>❌ Accès refusé</h1>
           <p style={styles.accessDeniedText}>
-            Vous devez être un employé admin pour accéder à cette interface.
+            Seuls les employés avec le rôle "admin" peuvent accéder à cette interface.
           </p>
           <p style={styles.accessDeniedInfo}>
-            Connecté en tant que : <strong>{user.email}</strong>
+            Connecté en tant que : <strong>{employee.username}</strong> ({employee.role})
           </p>
           <button onClick={handleLogout} style={styles.logoutBtn}>
             Se déconnecter
@@ -88,15 +107,18 @@ function App() {
     );
   }
 
+  // Interface admin
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>🔐 Administration - Gestion Authentification</h1>
           <span style={styles.adminBadge}>ADMIN</span>
+          <span style={styles.localBadge}>Authentification locale</span>
         </div>
         <div style={styles.userInfo}>
-          <span style={styles.email}>{user.email}</span>
+          <span style={styles.username}>👤 {employee.username}</span>
+          <span style={styles.email}>{employee.email}</span>
           <button onClick={handleLogout} style={styles.logoutButton}>
             Déconnexion
           </button>
@@ -120,7 +142,7 @@ function App() {
             ...(activeTab === 'firebase-users' ? styles.tabActive : {})
           }}
         >
-          👥 Utilisateurs Firebase
+          🔥 Utilisateurs Firebase
         </button>
         <button
           onClick={() => setActiveTab('blocked')}
@@ -161,13 +183,13 @@ const styles = {
     fontSize: '18px',
     color: '#666',
   },
-  switchButton: {
+  switchButtonContainer: {
     position: 'fixed',
     top: '20px',
     right: '20px',
     zIndex: 1000,
   },
-  switchBtn: {
+  switchButton: {
     padding: '10px 20px',
     backgroundColor: '#fff',
     color: '#1976d2',
@@ -208,6 +230,16 @@ const styles = {
     color: '#999',
     marginBottom: '24px',
   },
+  logoutBtn: {
+    padding: '12px 24px',
+    backgroundColor: '#f44336',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
   header: {
     backgroundColor: '#fff',
     padding: '20px 40px',
@@ -231,28 +263,33 @@ const styles = {
     borderRadius: '12px',
     fontSize: '12px',
     fontWeight: '600',
+    marginRight: '8px',
+  },
+  localBadge: {
+    display: 'inline-block',
+    backgroundColor: '#4caf50',
+    color: '#fff',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '16px',
+  },
+  username: {
+    color: '#333',
+    fontSize: '14px',
+    fontWeight: '600',
   },
   email: {
     color: '#666',
-    fontSize: '14px',
+    fontSize: '13px',
   },
   logoutButton: {
     padding: '8px 16px',
-    backgroundColor: '#f44336',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
-  logoutBtn: {
-    padding: '12px 24px',
     backgroundColor: '#f44336',
     color: '#fff',
     border: 'none',

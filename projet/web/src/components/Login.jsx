@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
-import { authAPI } from '../services/api';
+import { employeeAPI } from '../services/api';
 
-function Login() {
-  const [email, setEmail] = useState('');
+function Login({ onLoginSuccess }) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,27 +13,20 @@ function Login() {
     setLoading(true);
 
     try {
-      // Connexion Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const token = await userCredential.user.getIdToken();
-      localStorage.setItem('firebaseToken', token);
-
-      // Vérifier les droits admin
-      const idTokenResult = await userCredential.user.getIdTokenResult();
-      if (!idTokenResult.claims.admin) {
-        setError('Vous devez être un employé admin pour accéder à cette interface.');
-        await auth.signOut();
-        localStorage.removeItem('firebaseToken');
-        setLoading(false);
-        return;
+      // Connexion locale (PostgreSQL)
+      const response = await employeeAPI.login(username, password);
+      
+      // Stocker le token JWT
+      localStorage.setItem('employeeToken', response.data.token);
+      
+      // Notifier le parent
+      if (onLoginSuccess) {
+        onLoginSuccess(response.data.employee);
       }
-
-      // Enregistrer la connexion réussie
-      await authAPI.recordSuccessfulLogin();
 
     } catch (err) {
       console.error('Erreur connexion:', err);
-      setError('Email ou mot de passe incorrect, ou vous n\'avez pas les droits admin.');
+      setError(err.response?.data?.error || 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
@@ -44,23 +35,24 @@ function Login() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <div style={styles.badge}>Interface Admin</div>
-        <h1 style={styles.title}>Connexion Administrateur</h1>
-        <p style={styles.subtitle}>Accès réservé aux employés admin</p>
+        <div style={styles.badge}>Interface Admin - Connexion Locale</div>
+        <h1 style={styles.title}>Connexion Employé</h1>
+        <p style={styles.subtitle}>Authentification hors ligne (PostgreSQL)</p>
         
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label style={styles.label}>Email</label>
+            <label style={styles.label}>Nom d'utilisateur ou Email</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
-              placeholder="admin@example.com"
+              placeholder="admin ou admin@example.com"
               required
               disabled={loading}
+              autoFocus
             />
           </div>
 
@@ -87,10 +79,10 @@ function Login() {
         </form>
 
         <div style={styles.infoBox}>
-          <strong>ℹ️ Information :</strong>
+          <strong>🔒 Authentification locale</strong>
           <p style={styles.infoText}>
-            Seuls les employés avec le rôle "admin" peuvent accéder à cette interface.
-            Utilisez le bouton en haut à droite pour tester l'interface utilisateur normale.
+            Cette interface utilise une authentification locale stockée dans PostgreSQL.
+            Pas besoin de connexion internet ou Firebase pour les employés.
           </p>
         </div>
       </div>
@@ -112,13 +104,13 @@ const styles = {
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     width: '100%',
-    maxWidth: '400px',
+    maxWidth: '450px',
   },
   badge: {
     display: 'inline-block',
-    backgroundColor: '#ffebee',
-    color: '#d32f2f',
-    padding: '4px 12px',
+    backgroundColor: '#e8f5e9',
+    color: '#2e7d32',
+    padding: '6px 14px',
     borderRadius: '12px',
     fontSize: '12px',
     fontWeight: '600',
@@ -166,7 +158,7 @@ const styles = {
   },
   button: {
     padding: '12px',
-    backgroundColor: '#1976d2',
+    backgroundColor: '#2e7d32',
     color: '#fff',
     border: 'none',
     borderRadius: '4px',

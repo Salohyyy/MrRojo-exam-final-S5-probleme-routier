@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Erreur PostgreSQL inattendue:', err);
+  console.error('Erreur PostgreSQL:', err);
 });
 
 module.exports = pool;
