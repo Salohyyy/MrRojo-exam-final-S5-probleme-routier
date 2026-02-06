@@ -1,0 +1,17 @@
+.env
+*.json 
+node_modules/
+
+projet/api/firebase-credentials.json
+<<<<<<< HEAD
+projet/api/config/firebase-credentials.json
+
+firebase-credentials.json
+api/firebase-credentials.json
+api/config/firebase-credentials.json
+node_modules/
+firebase.json
+    
+=======
+node_modules/
+>>>>>>> origin/espace-employe-fonctionnel
