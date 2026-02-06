@@ -98,7 +98,7 @@ function UserLogin() {
           setAttemptsLeft(failResponse.data.attemptsLeft);
         }
       } catch (apiErr) {
-        setError('❌ Email ou mot de passe incorrect.');
+        setError('❌ Email ou mot de passe incorrect.' + (apiErr.response?.data?.error ? ` (${apiErr.response.data.error})` : ''));
       }
     } finally {
       setLoading(false);
