@@ -90,8 +90,67 @@ async function verifyFirebaseToken(req, res, next) {
   }
 }
 
+// Middleware qui accepte soit un token employé (JWT) soit un token Firebase
+async function verifyAnyToken(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Token manquant' });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+
+    // Essayer d'abord le token employé (JWT)
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const result = await pool.query(
+        `SELECT e.id, e.username, e.email, r.name as role_name
+         FROM employees e
+         JOIN roles r ON e.role_id = r.id
+         WHERE e.id = $1`,
+        [decoded.id]
+      );
+
+      if (result.rows.length > 0) {
+        req.employee = result.rows[0];
+        req.authType = 'employee';
+        return next();
+      }
+    } catch (jwtError) {
+      // Token JWT invalide, essayer Firebase
+    }
+
+    // Essayer le token Firebase
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      req.user = decodedToken;
+      req.authType = 'firebase';
+
+      const attempts = await firebaseSettings.getLoginAttempts(decodedToken.uid);
+      if (attempts.is_blocked) {
+        return res.status(403).json({
+          error: 'Compte bloqué',
+          message: 'Votre compte a été bloqué.'
+        });
+      }
+
+      return next();
+    } catch (firebaseError) {
+      // Token Firebase invalide aussi
+    }
+
+    return res.status(401).json({ error: 'Token invalide' });
+
+  } catch (error) {
+    console.error('Erreur vérification token:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+}
+
 module.exports = {
   verifyEmployeeToken,
   requireAdmin,
-  verifyFirebaseToken
+  verifyFirebaseToken,
+  verifyAnyToken
 };
