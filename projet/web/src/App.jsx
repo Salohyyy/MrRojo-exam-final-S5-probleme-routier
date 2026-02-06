@@ -5,12 +5,18 @@ import UserLogin from './components/UserLogin';
 import SessionSettings from './components/SessionSettings';
 import BlockedUsers from './components/BlockedUsers';
 import FirebaseUsers from './components/FirebaseUsers';
+import ManagerDashboard from './components/ManagerDashboard';
+import MapReports from './components/map/MapReports';
+import DashboardStats from './components/stats/DashboardStats';
+import ReportSyncs from './components/ReportSyncs';
+import { LayoutDashboard } from 'lucide-react';
 
 function App() {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('settings');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showUserInterface, setShowUserInterface] = useState(false);
+  const [visitorView, setVisitorView] = useState('map'); // 'map', 'table'
 
   useEffect(() => {
     checkEmployeeAuth();
@@ -55,6 +61,99 @@ function App() {
 
   // Afficher l'interface utilisateur (test Firebase)
   if (showUserInterface) {
+    // Mode visiteur/portail public
+    if (showUserInterface === 'visitor') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f0f2f5' }}>
+          {/* Header */}
+          <header style={{ 
+            padding: '1rem 2rem', 
+            backgroundColor: 'white', 
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '8px', background: '#3498db', borderRadius: '8px', color: 'white' }}>
+                <LayoutDashboard size={24} />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.25rem', color: '#2c3e50', fontWeight: '700' }}>
+                  Portail des Infrastructures Routières
+                </h1>
+                <span style={{ fontSize: '0.85rem', color: '#7f8c8d' }}>
+                  Antananarivo, Madagascar
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={() => setVisitorView(visitorView === 'map' ? 'table' : 'map')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #3498db',
+                  backgroundColor: visitorView === 'map' ? 'white' : '#3498db',
+                  color: visitorView === 'map' ? '#3498db' : 'white',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {visitorView === 'map' ? '📊 Voir tableau récap' : '🗺️ Voir la carte'}
+              </button>
+              <button onClick={() => setShowUserInterface(false)} style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #ddd',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}>
+                Connexion Admin
+              </button>
+            </div>
+          </header>
+
+          {visitorView === 'map' ? (
+            <>
+              {/* Stats Section */}
+              <div style={{ 
+                flex: '0 0 auto', 
+                zIndex: 10,
+                padding: '1rem 2rem 0 2rem'
+              }}>
+                <DashboardStats />
+              </div>
+
+              {/* Map Section */}
+              <div style={{ 
+                flex: '1', 
+                position: 'relative', 
+                margin: '1rem 2rem 2rem 2rem',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                border: '1px solid rgba(0,0,0,0.05)'
+              }}>
+                <MapReports />
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <ReportSyncs readOnly={true} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Mode test utilisateur Firebase
     return (
       <div>
         <div style={styles.switchButtonContainer}>
@@ -75,6 +174,12 @@ function App() {
     return (
       <div>
         <div style={styles.switchButtonContainer}>
+          <button 
+            onClick={() => setShowUserInterface('visitor')}
+            style={{...styles.switchButton, marginRight: '10px'}}
+          >
+            🗺️ Portail Public
+          </button>
           <button 
             onClick={() => setShowUserInterface(true)}
             style={styles.switchButton}
@@ -127,6 +232,15 @@ function App() {
 
       <div style={styles.tabs}>
         <button
+          onClick={() => setActiveTab('dashboard')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'dashboard' ? styles.tabActive : {})
+          }}
+        >
+          📊 Dashboard
+        </button>
+        <button
           onClick={() => setActiveTab('settings')}
           style={{
             ...styles.tab,
@@ -154,17 +268,45 @@ function App() {
           🚫 Utilisateurs bloqués
         </button>
         <button
-          onClick={() => setShowUserInterface(true)}
+          onClick={() => setActiveTab('map')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'map' ? styles.tabActive : {})
+          }}
+        >
+          🗺️ Carte
+        </button>
+        <button
+          onClick={() => setActiveTab('report-syncs')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'report-syncs' ? styles.tabActive : {})
+          }}
+        >
+          🏗️ Suivi Chantiers
+        </button>
+        <button
+          onClick={() => setShowUserInterface('visitor')}
           style={styles.testButton}
         >
-          🧪 Tester interface utilisateur
+          🌐 Portail Public
         </button>
       </div>
 
       <div style={styles.content}>
+        {activeTab === 'dashboard' && <ManagerDashboard />}
         {activeTab === 'settings' && <SessionSettings />}
         {activeTab === 'firebase-users' && <FirebaseUsers />}
         {activeTab === 'blocked' && <BlockedUsers />}
+        {activeTab === 'map' && (
+          <div style={{ height: 'calc(100vh - 200px)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <MapReports 
+              showAdminButton={true} 
+              onAdminButtonClick={() => setActiveTab('report-syncs')} 
+            />
+          </div>
+        )}
+        {activeTab === 'report-syncs' && <ReportSyncs />}
       </div>
     </div>
   );
