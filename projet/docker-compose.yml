@@ -36,8 +36,10 @@ services:
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
-      # Variables pour le SDK Admin Firebase (Backend)
-      FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+      # Ajoutez vos credentials Firebase ici
+      # FIREBASE_PROJECT_ID: your-project-id
+      # FIREBASE_PRIVATE_KEY: your-private-key
+      # FIREBASE_CLIENT_EMAIL: your-client-email
     volumes:
       # On monte le fichier de credentials que vous avez téléchargé
       - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
@@ -45,16 +47,17 @@ services:
       - app-network
     restart: unless-stopped
 
-  tileserver:
-    image: maptiler/tileserver-gl
-    container_name: offline_map
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./maps:/data
-    command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
-    networks:
-      - app-network
+  # tileserver:
+  #   image: maptiler/tileserver-gl
+  #   container_name: offline_map
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./maps:/data
+  #   command: ["--file", "/data/osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles"]
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
 
   web:
     build:
@@ -73,6 +76,7 @@ services:
       - "80:80"
     depends_on:
       - api
+      # - tileserver
     networks:
       - app-network
     restart: unless-stopped

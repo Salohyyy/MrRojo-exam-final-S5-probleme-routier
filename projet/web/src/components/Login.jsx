@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
-import { authAPI } from '../services/api';
+import { employeeAPI } from '../services/api';
 
-function Login({ onVisitorClick }) {
-  const [email, setEmail] = useState('');
+function Login({ onLoginSuccess, onVisitorClick }) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,41 +13,20 @@ function Login({ onVisitorClick }) {
     setLoading(true);
 
     try {
-      // Vérifier les tentatives avant de se connecter
-      const checkResponse = await authAPI.checkAttempts(email);
-
-      if (!checkResponse.data.canLogin) {
-        setError(checkResponse.data.error);
-        setLoading(false);
-        return;
+      // Connexion locale (PostgreSQL)
+      const response = await employeeAPI.login(username, password);
+      
+      // Stocker le token JWT
+      localStorage.setItem('employeeToken', response.data.token);
+      
+      // Notifier le parent
+      if (onLoginSuccess) {
+        onLoginSuccess(response.data.employee);
       }
-
-      setAttemptsLeft(checkResponse.data.attemptsLeft);
-
-      // Tenter la connexion Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const token = await userCredential.user.getIdToken();
-      localStorage.setItem('firebaseToken', token);
-
-      // Enregistrer la connexion réussie
-      await authAPI.recordSuccessfulLogin();
 
     } catch (err) {
       console.error('Erreur connexion:', err);
-
-      // Enregistrer la tentative échouée
-      try {
-        const failResponse = await authAPI.recordFailedAttempt(email);
-
-        if (failResponse.data.blocked) {
-          setError(failResponse.data.message);
-        } else {
-          setError(`Identifiants incorrects. ${failResponse.data.attemptsLeft} tentative(s) restante(s).`);
-          setAttemptsLeft(failResponse.data.attemptsLeft);
-        }
-      } catch (apiErr) {
-        setError('Email ou mot de passe incorrect.');
-      }
+      setError(err.response?.data?.error || 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
@@ -59,26 +35,24 @@ function Login({ onVisitorClick }) {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Connexion</h1>
-
+        <div style={styles.badge}>Interface Admin - Connexion Locale</div>
+        <h1 style={styles.title}>Connexion Employé</h1>
+        <p style={styles.subtitle}>Authentification hors ligne (PostgreSQL)</p>
+        
         {error && <div style={styles.error}>{error}</div>}
-
-        {attemptsLeft !== null && !error && (
-          <div style={styles.info}>
-            Tentatives restantes : {attemptsLeft}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label style={styles.label}>Email</label>
+            <label style={styles.label}>Nom d'utilisateur ou Email</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
+              placeholder="admin ou admin@example.com"
               required
               disabled={loading}
+              autoFocus
             />
           </div>
 
@@ -89,6 +63,7 @@ function Login({ onVisitorClick }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
+              placeholder="••••••••"
               required
               disabled={loading}
             />
@@ -120,6 +95,14 @@ function Login({ onVisitorClick }) {
             </button>
           </div>
         </form>
+
+        <div style={styles.infoBox}>
+          <strong>🔒 Authentification locale</strong>
+          <p style={styles.infoText}>
+            Cette interface utilise une authentification locale stockée dans PostgreSQL.
+            Pas besoin de connexion internet ou Firebase pour les employés.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -139,26 +122,32 @@ const styles = {
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     width: '100%',
-    maxWidth: '400px',
+    maxWidth: '450px',
+  },
+  badge: {
+    display: 'inline-block',
+    backgroundColor: '#e8f5e9',
+    color: '#2e7d32',
+    padding: '6px 14px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    marginBottom: '16px',
   },
   title: {
     fontSize: '24px',
     fontWeight: '600',
-    marginBottom: '24px',
-    textAlign: 'center',
+    marginBottom: '8px',
     color: '#333',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '24px',
   },
   error: {
     backgroundColor: '#ffebee',
     color: '#c62828',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  info: {
-    backgroundColor: '#e3f2fd',
-    color: '#1565c0',
     padding: '12px',
     borderRadius: '4px',
     marginBottom: '16px',
@@ -187,7 +176,7 @@ const styles = {
   },
   button: {
     padding: '12px',
-    backgroundColor: '#1976d2',
+    backgroundColor: '#2e7d32',
     color: '#fff',
     border: 'none',
     borderRadius: '4px',
@@ -195,6 +184,18 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     marginTop: '8px',
+  },
+  infoBox: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '4px',
+    fontSize: '13px',
+    color: '#666',
+  },
+  infoText: {
+    marginTop: '8px',
+    lineHeight: '1.6',
   },
 };
 

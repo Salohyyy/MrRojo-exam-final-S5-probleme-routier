@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 -- Création de la table pour les paramètres de session
 CREATE TABLE IF NOT EXISTS session_settings (
@@ -5,42 +6,113 @@ CREATE TABLE IF NOT EXISTS session_settings (
     session_duration_hours INTEGER NOT NULL DEFAULT 24,
     max_login_attempts INTEGER NOT NULL DEFAULT 3,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+=======
+-- Tables existantes (votre base - inchangées)
+CREATE TABLE IF NOT EXISTS roles (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50)
+>>>>>>> origin/espace-employe-fonctionnel
 );
 
--- Insertion des paramètres par défaut
-INSERT INTO session_settings (session_duration_hours, max_login_attempts) 
-VALUES (24, 3);
-
--- Table pour suivre les utilisateurs et leurs tentatives de connexion
-CREATE TABLE IF NOT EXISTS user_auth_tracking (
-    uid VARCHAR(255) PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
-    failed_attempts INTEGER DEFAULT 0,
-    is_blocked BOOLEAN DEFAULT FALSE,
-    blocked_at TIMESTAMP,
-    last_attempt_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS problem_types (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50)
 );
 
--- Table pour l'historique des sessions
-CREATE TABLE IF NOT EXISTS user_sessions (
-    id SERIAL PRIMARY KEY,
-    uid VARCHAR(255) NOT NULL,
-    session_token VARCHAR(500) NOT NULL,
+CREATE TABLE IF NOT EXISTS companies (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    address VARCHAR(50)
+);
+
+CREATE TABLE IF NOT EXISTS report_statuses (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    level NUMERIC(15,2)
+);
+
+CREATE TABLE IF NOT EXISTS user_statuses (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Table employees pour authentification LOCALE (mot de passe en clair)
+CREATE TABLE IF NOT EXISTS employees (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL, -- Mot de passe en clair
+    birth_date DATE,
+    role_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (uid) REFERENCES user_auth_tracking(uid) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+-- Table users (vide ou pour données métier uniquement, PAS pour auth)
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50),
+    email VARCHAR(50) UNIQUE,
+    birth_date DATE,
+    user_status_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_status_id) REFERENCES user_statuses(id)
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGSERIAL PRIMARY KEY,
+    reported_at TIMESTAMP,
+    longitude NUMERIC(17,2),
+    latitude NUMERIC(15,2),
+    city VARCHAR(50),
+    is_synced BOOLEAN,
+    report_status_id BIGINT NOT NULL,
+    problem_type_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
+    FOREIGN KEY (problem_type_id) REFERENCES problem_types(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS report_syncs (
+    id BIGSERIAL PRIMARY KEY,
+    surface VARCHAR(50),
+    budget NUMERIC(15,2),
+    progress NUMERIC(15,2),
+    report_status_id BIGINT NOT NULL,
+    company_id BIGINT NOT NULL,
+    report_id BIGINT NOT NULL,
+    FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
+    FOREIGN KEY (company_id) REFERENCES companies(id),
+    FOREIGN KEY (report_id) REFERENCES reports(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_status_histories (
+    id BIGSERIAL PRIMARY KEY,
+    changed_at TIMESTAMP,
+    employee_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    user_status_id BIGINT NOT NULL,
+    FOREIGN KEY (employee_id) REFERENCES employees(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (user_status_id) REFERENCES user_statuses(id)
+);
+
+CREATE TABLE IF NOT EXISTS report_sync_histories (
+    id BIGSERIAL PRIMARY KEY,
+    changed_at TIMESTAMP,
+    report_status_id BIGINT NOT NULL,
+    report_sync_id BIGINT NOT NULL,
+    FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
+    FOREIGN KEY (report_sync_id) REFERENCES report_syncs(id)
 );
 
 -- Index pour améliorer les performances
-CREATE INDEX idx_user_sessions_uid ON user_sessions(uid);
-CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
-CREATE INDEX idx_user_sessions_active ON user_sessions(is_active);
-CREATE INDEX idx_user_auth_blocked ON user_auth_tracking(is_blocked);
+CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
+CREATE INDEX IF NOT EXISTS idx_employees_username ON employees(username);
 
--- Fonction pour mettre à jour automatiquement updated_at
+-- Fonction pour mettre à jour updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -49,11 +121,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Trigger pour session_settings
-CREATE TRIGGER update_session_settings_updated_at 
-    BEFORE UPDATE ON session_settings
+-- Trigger pour employees
+CREATE TRIGGER update_employees_updated_at 
+    BEFORE UPDATE ON employees
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+<<<<<<< HEAD
 -- Trigger pour user_auth_tracking
 CREATE TRIGGER update_user_auth_tracking_updated_at 
     BEFORE UPDATE ON user_auth_tracking
@@ -180,3 +253,69 @@ INSERT INTO reports (reported_at, longitude, latitude, city, is_synced, report_s
 INSERT INTO report_syncs (surface, budget, progress, report_status_id, company_id, report_id) VALUES
 ('50m2', 1500000.00, 0, 1, 1, 1),
 ('100m2', 5000000.00, 50, 2, 2, 2);
+=======
+-- ============================================
+-- DONNÉES INITIALES
+-- ============================================
+
+-- Insérer les rôles
+INSERT INTO roles (name) VALUES 
+    ('admin'), 
+    ('employee') 
+ON CONFLICT DO NOTHING;
+
+-- Insérer les statuts utilisateur
+INSERT INTO user_statuses (name) VALUES 
+    ('active'), 
+    ('inactive'), 
+    ('blocked') 
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- CRÉER L'EMPLOYÉ ADMIN PAR DÉFAUT
+-- ============================================
+-- Username: admin
+-- Email: admin@example.com
+-- Password: admin123
+-- ============================================
+
+DO $$
+DECLARE
+    admin_role_id BIGINT;
+BEGIN
+    -- Récupérer l'ID du rôle admin
+    SELECT id INTO admin_role_id FROM roles WHERE name = 'admin';
+    
+    -- Créer l'employé admin s'il n'existe pas
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('admin', 'admin@example.com', 'admin123', admin_role_id)
+    ON CONFLICT (username) DO NOTHING;
+    
+    -- Afficher un message (visible dans les logs Docker)
+    RAISE NOTICE '✅ Employé admin créé : username=admin, password=admin123';
+END $$;
+
+-- ============================================
+-- EXEMPLES : Ajouter d'autres employés
+-- ============================================
+-- Décommentez et modifiez selon vos besoins
+
+/*
+DO $$
+DECLARE
+    employee_role_id BIGINT;
+BEGIN
+    SELECT id INTO employee_role_id FROM roles WHERE name = 'employee';
+    
+    -- Employé simple
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('employe1', 'employe1@example.com', 'password123', employee_role_id)
+    ON CONFLICT (username) DO NOTHING;
+    
+    -- Admin supplémentaire
+    INSERT INTO employees (username, email, password, role_id)
+    VALUES ('superadmin', 'super@example.com', 'super123', (SELECT id FROM roles WHERE name = 'admin'))
+    ON CONFLICT (username) DO NOTHING;
+END $$;
+*/
+>>>>>>> origin/espace-employe-fonctionnel

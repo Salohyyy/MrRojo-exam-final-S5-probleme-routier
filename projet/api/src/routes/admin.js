@@ -1,26 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const { verifyFirebaseToken, requireAdmin } = require('../middleware/auth');
+const { verifyEmployeeToken, requireAdmin } = require('../middleware/auth');
 const {
   getSettings,
   updateSessionDuration,
-  updateMaxAttempts,
+  updateDefaultMaxAttempts,
+  getAllFirebaseUsers,
+  updateUserMaxAttempts,
   getBlockedUsers,
-  unblockUser,
-  getAllUsers
+  unblockUser
 } = require('../controllers/adminController');
 
-// Toutes les routes admin nécessitent authentification + rôle admin
-router.use(verifyFirebaseToken);
+router.use(verifyEmployeeToken);
 router.use(requireAdmin);
 
-// Paramètres
 router.get('/settings', getSettings);
 router.put('/settings/session-duration', updateSessionDuration);
-router.put('/settings/max-attempts', updateMaxAttempts);
+router.put('/settings/max-attempts', updateDefaultMaxAttempts);
 
-// Gestion des utilisateurs
-router.get('/users', getAllUsers);
+router.get('/firebase-users', getAllFirebaseUsers);
+router.put('/users/:uid/max-attempts', updateUserMaxAttempts);
+
 router.get('/users/blocked', getBlockedUsers);
 router.post('/users/:uid/unblock', unblockUser);
 
