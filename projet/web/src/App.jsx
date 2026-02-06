@@ -193,24 +193,24 @@ function App() {
   }
 
   // Vérifier le rôle admin
-  if (employee.role !== 'admin') {
-    return (
-      <div style={styles.accessDenied}>
-        <div style={styles.accessDeniedCard}>
-          <h1 style={styles.accessDeniedTitle}>❌ Accès refusé</h1>
-          <p style={styles.accessDeniedText}>
-            Seuls les employés avec le rôle "admin" peuvent accéder à cette interface.
-          </p>
-          <p style={styles.accessDeniedInfo}>
-            Connecté en tant que : <strong>{employee.username}</strong> ({employee.role})
-          </p>
-          <button onClick={handleLogout} style={styles.logoutBtn}>
-            Se déconnecter
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // if (employee.role !== 'admin') {
+  //   return (
+  //     <div style={styles.accessDenied}>
+  //       <div style={styles.accessDeniedCard}>
+  //         <h1 style={styles.accessDeniedTitle}>❌ Accès refusé</h1>
+  //         <p style={styles.accessDeniedText}>
+  //           Seuls les employés avec le rôle "admin" peuvent accéder à cette interface.
+  //         </p>
+  //         <p style={styles.accessDeniedInfo}>
+  //           Connecté en tant que : <strong>{employee.username}</strong> ({employee.role})
+  //         </p>
+  //         <button onClick={handleLogout} style={styles.logoutBtn}>
+  //           Se déconnecter
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   // Interface admin
   return (
