@@ -5,6 +5,7 @@ export interface Report {
   progress: number;
   report_status_id: string;
   budget: number;
+  problem_type_id?: string | number;
 }
 
 export interface ReportTraite {
@@ -30,10 +31,12 @@ export interface ReportData {
   report_status_id: number;
   reported_at: any;
   user_id: string;
+  photos?: string[]; // URLs des photos dans Firebase Storage
 }
 
 export interface ProblemStyle {
   color: string;
   fillColor: string;
   label: string;
+  icon?: string;
 }

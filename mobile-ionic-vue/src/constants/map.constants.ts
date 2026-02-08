@@ -1,17 +1,20 @@
 import { ProblemStyle } from '../types/report.types';
+import { COLORS } from './theme.constants';
 
 export const PROBLEM_STYLES: Record<string, ProblemStyle> = {
-  '1': { color: '#e74c3c', fillColor: '#e74c3c', label: 'nid de poule' },
-  '2': { color: '#e67e22', fillColor: '#e67e22', label: 'chaussée dégradée' },
-  '3': { color: '#f1c40f', fillColor: '#f1c40f', label: 'lampadaires' },
-  '4': { color: '#9b59b6', fillColor: '#9b59b6', label: 'fissure' },
-  '5': { color: '#3498db', fillColor: '#3498db', label: 'glissement' }
+  '1': { color: '#FF385C', fillColor: '#FF385C', label: 'nid de poule', icon: '🕳️' },
+  '2': { color: '#FC642D', fillColor: '#FC642D', label: 'chaussée dégradée', icon: '🚧' },
+  '3': { color: '#FFDB58', fillColor: '#FFDB58', label: 'lampadaires', icon: '💡' },
+  '4': { color: '#00A699', fillColor: '#00A699', label: 'fissure', icon: '⚡' },
+  '5': { color: '#008080', fillColor: '#008080', label: 'glissement', icon: '⛰️' },
+  '6': { color: '#4285F4', fillColor: '#4285F4', label: 'inondation', icon: '💧' }
 };
 
 export const DEFAULT_STYLE: ProblemStyle = { 
-  color: '#2c3e50', 
-  fillColor: '#2c3e50', 
-  label: 'problème' 
+  color: '#484848', 
+  fillColor: '#484848', 
+  label: 'problème',
+  icon: '⚠️'
 };
 
 export const MAP_CONFIG = {

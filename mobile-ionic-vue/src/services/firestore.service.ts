@@ -14,7 +14,8 @@ export class FirestoreService {
         company_name: data.company_name || '',
         progress: Number(data.progress) || 0,
         report_status_id: String(data.report_status_id || ''),
-        budget: Number(data.budget) || 0
+        budget: Number(data.budget) || 0,
+        problem_type_id: data.problem_type_id
       };
     });
   }
