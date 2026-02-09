@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReportSyncs from './ReportSyncs';
+import ReportSyncs from './components/ReportSyncs';
 
 function App() {
   return (

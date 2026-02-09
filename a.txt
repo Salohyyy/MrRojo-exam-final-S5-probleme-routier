@@ -1,0 +1,1 @@
+cd "c:\Users\aina\Desktop\S5\Mrrojo\Projet_hell\MrRojo-exam-final-S5-probleme-routier\mobile-ionic-vue\android"; .\gradlew.bat clean assembleDebug
