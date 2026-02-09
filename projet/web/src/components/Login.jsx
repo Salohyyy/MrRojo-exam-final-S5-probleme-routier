@@ -46,7 +46,7 @@ function Login({ onLoginSuccess, onVisitorClick }) {
             <label style={styles.label}>Nom d'utilisateur ou Email</label>
             <input
               type="text"
-              value="admin"
+              placeholder="admin ou admin@example.com"
               onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
               required
@@ -59,7 +59,7 @@ function Login({ onLoginSuccess, onVisitorClick }) {
             <label style={styles.label}>Mot de passe</label>
             <input
               type="password"
-              value="admin123"
+              placeholder="admin123"
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
               required
