@@ -29,44 +29,50 @@ async function syncDownload(client) {
     let syncCount = 0;
 
     try {
-        const snapshot = await db
-            .collection('reports')
-            .where('is_synced', '==', false)
-            .get();
+        const snapshot = await db.collection('reports').get();
 
         for (const doc of snapshot.docs) {
             const data = doc.data();
-
+            const firebaseId = doc.id;
+            
+            // Récupérer l'utilisateur
             const postgresUserId = await syncUserToPostgres({
                 email: `${data.user_id}@firebase.local`,
                 displayName: data.user_id
             });
 
+            // Déterminer la valeur pour le local (inverse de Firebase)
+            const localIsSynced = data.is_synced;
+            // Si Firebase.is_synced = false → Local.is_synced = true
+            // Si Firebase.is_synced = true → Local.is_synced = false
+
+            // UPSERT (insert or update)
             const result = await client.query(
                 `INSERT INTO reports (
-                reported_at, longitude, latitude, city, is_synced,
-                report_status_id, problem_type_id, user_id, firebase_id
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    reported_at, longitude, latitude, city, is_synced,
+                    report_status_id, problem_type_id, user_id, firebase_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (firebase_id) 
+                DO UPDATE SET 
+                    is_synced = true
                 RETURNING id`,
                 [
                     data.reported_at?.toDate() || new Date(),
                     Number(data.longitude),
                     Number(data.latitude),
                     data.city,
-                    true,
+                    localIsSynced, // Valeur inversée
                     data.report_status_id,
                     data.problem_type_id,
                     postgresUserId,
-                    doc.id
+                    firebaseId
                 ]
             );
 
-            const postgresReportId = result.rows[0].id;
-
+            // Mettre à jour Firebase avec la valeur inverse
             await doc.ref.update({
-                is_synced: true,
-                postgres_report_id: postgresReportId
+                is_synced: !localIsSynced, // Inverser pour Firebase
+                postgres_report_id: result.rows[0].id
             });
 
             syncCount++;
