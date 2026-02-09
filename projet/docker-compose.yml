@@ -29,22 +29,17 @@ services:
         condition: service_healthy
     environment:
       TZ: UTC
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 4000
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: routes_db
       DB_USER: admin
       DB_PASSWORD: admin
-      # Ajoutez vos credentials Firebase ici
-      # FIREBASE_PROJECT_ID: your-project-id
-      # FIREBASE_PRIVATE_KEY: your-private-key
-      # FIREBASE_CLIENT_EMAIL: your-client-email
     volumes:
-      # On monte le fichier de credentials que vous avez téléchargé
-      - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
-      # Volume pour persister les node_modules
+      - ./api:/app
       - api_node_modules:/app/node_modules
+      - ./api/firebase-credentials.json:/app/firebase-credentials.json:ro
     networks:
       - app-network
     restart: unless-stopped
@@ -65,7 +60,6 @@ services:
     build:
       context: ./web
       args:
-        # On passe les variables au build de Vite
         VITE_API_URL: http://localhost:4000
         VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
         VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
@@ -78,9 +72,8 @@ services:
       - "80:80"
     depends_on:
       - api
-      # - tileserver
     volumes:
-      # Volume pour persister les node_modules
+      - ./web:/app
       - web_node_modules:/app/node_modules
     networks:
       - app-network
