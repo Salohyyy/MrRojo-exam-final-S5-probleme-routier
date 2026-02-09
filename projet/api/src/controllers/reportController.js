@@ -276,10 +276,10 @@ async function getReportSyncs(req, res) {
 
 async function updateReportSyncStatus(req, res) {
   const { id } = req.params;
-  const { report_status_id, progress } = req.body;
+  const { report_status_id, changed_at } = req.body;
   
   try {
-    const updatedSync = await reportSyncModel.updateReportSyncStatus(id, report_status_id, progress);
+    const updatedSync = await reportSyncModel.updateReportSyncStatus(id, report_status_id, changed_at);
     
     if (!updatedSync) {
       return res.status(404).json({ error: 'Report sync non trouvé' });
@@ -296,6 +296,27 @@ async function updateReportSyncStatus(req, res) {
   }
 }
 
+async function getReportSyncHistories(req, res) {
+  const { id } = req.params;
+  try {
+    const histories = await reportSyncModel.getReportSyncHistories(id);
+    res.json(histories);
+  } catch (err) {
+    console.error('Erreur getReportSyncHistories:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
+
+async function getAllReportSyncHistories(req, res) {
+  try {
+    const histories = await reportSyncModel.getAllReportSyncHistories();
+    res.json(histories);
+  } catch (err) {
+    console.error('Erreur getAllReportSyncHistories:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
+
 module.exports = {
   createReport,
   getAllReports,
@@ -305,5 +326,7 @@ module.exports = {
   uploadAllReports,
   syncDownload: syncDownloadReports,
   getReportSyncs,
-  updateReportSyncStatus
+  updateReportSyncStatus,
+  getReportSyncHistories,
+  getAllReportSyncHistories
 };

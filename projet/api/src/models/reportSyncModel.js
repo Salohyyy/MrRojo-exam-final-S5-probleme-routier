@@ -50,50 +50,40 @@ const getReportSyncFullData = async (id) => {
   return result.rows[0];
 };
 
-const updateReportSyncStatus = async (id, statusId, progress) => {
+// Mapping statut -> progression automatique
+const STATUS_PROGRESS_MAP = {
+  1: 0,    // Nouveau = 0%
+  2: 50,   // En cours = 50%
+  3: 100,  // Terminé = 100%
+  4: 0     // Rejeté = 0%
+};
+
+const updateReportSyncStatus = async (id, statusId, changedAt) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
-    const fields = [];
-    const params = [];
-    let paramIndex = 1;
 
-    if (statusId !== undefined && statusId !== null) {
-      fields.push(`report_status_id = $${paramIndex++}`);
-      params.push(statusId);
+    if (!statusId) {
+      await client.query('ROLLBACK');
+      return null;
     }
 
-    if (progress !== undefined && progress !== null) {
-      fields.push(`progress = $${paramIndex++}`);
-      params.push(progress);
-    }
+    const progress = STATUS_PROGRESS_MAP[parseInt(statusId)] ?? 0;
+    const dateToUse = changedAt || new Date().toISOString();
 
-    if (fields.length === 0) {
-       await client.query('ROLLBACK');
-       return null; 
-    }
+    const updateQuery = `UPDATE report_syncs SET report_status_id = $1, progress = $2 WHERE id = $3 RETURNING *`;
+    const result = await client.query(updateQuery, [statusId, progress, id]);
 
-    params.push(id);
-    const idParamIndex = paramIndex;
-
-    const updateQuery = `UPDATE report_syncs SET ${fields.join(', ')} WHERE id = $${idParamIndex} RETURNING *`;
-    
-    const result = await client.query(updateQuery, params);
-    
     if (result.rows.length > 0) {
-      // Only insert history if status changed (statusId provided)
-      if (statusId !== undefined && statusId !== null) {
-        await client.query(`
-          INSERT INTO report_sync_histories (changed_at, report_status_id, report_sync_id)
-          VALUES (NOW(), $1, $2)
-        `, [statusId, id]);
-      }
+      await client.query(`
+        INSERT INTO report_sync_histories (changed_at, report_status_id, report_sync_id)
+        VALUES ($1, $2, $3)
+      `, [dateToUse, statusId, id]);
       await client.query('COMMIT');
     } else {
       await client.query('ROLLBACK');
     }
-    
+
     return result.rows[0];
   } catch (err) {
     await client.query('ROLLBACK');
@@ -103,8 +93,40 @@ const updateReportSyncStatus = async (id, statusId, progress) => {
   }
 };
 
+const getReportSyncHistories = async (reportSyncId) => {
+  const result = await pool.query(`
+    SELECT 
+      rsh.id,
+      rsh.changed_at,
+      rsh.report_status_id,
+      rst.name as status_name
+    FROM report_sync_histories rsh
+    JOIN report_statuses rst ON rsh.report_status_id = rst.id
+    WHERE rsh.report_sync_id = $1
+    ORDER BY rsh.changed_at ASC
+  `, [reportSyncId]);
+  return result.rows;
+};
+
+const getAllReportSyncHistories = async () => {
+  const result = await pool.query(`
+    SELECT 
+      rsh.id,
+      rsh.changed_at,
+      rsh.report_status_id,
+      rsh.report_sync_id,
+      rst.name as status_name
+    FROM report_sync_histories rsh
+    JOIN report_statuses rst ON rsh.report_status_id = rst.id
+    ORDER BY rsh.report_sync_id, rsh.changed_at ASC
+  `);
+  return result.rows;
+};
+
 module.exports = {
   getAllReportSyncs,
   getReportSyncFullData,
-  updateReportSyncStatus
+  updateReportSyncStatus,
+  getReportSyncHistories,
+  getAllReportSyncHistories
 };

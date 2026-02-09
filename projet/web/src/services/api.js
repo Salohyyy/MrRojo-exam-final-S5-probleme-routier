@@ -90,7 +90,9 @@ export const reportsAPI = {
   syncDownload: () => api.post('/api/reports/sync/download'),
   getReportSyncs: () => api.get('/api/reports/syncs'),
   getPublicReportSyncs: () => api.get('/api/visitor/reports/syncs'),
-  updateReportSyncStatus: (id, statusId, progress) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, progress }),
+  updateReportSyncStatus: (id, statusId, changedAt) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, changed_at: changedAt }),
+  getReportSyncHistories: (id) => api.get(`/api/reports/syncs/${id}/histories`),
+  getAllReportSyncHistories: () => api.get('/api/reports/syncs/histories'),
 };
 
 export const utilsAPI = { 
