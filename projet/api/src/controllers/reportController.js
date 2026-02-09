@@ -1,17 +1,12 @@
-
 const pool = require('../config/database');
 const { db } = require('../config/firebase');
 const admin = require('firebase-admin');
 const { syncUserToPostgres, syncDownload, syncUpload } = require('../utils/syncHelper');
 const reportSyncModel = require('../models/reportSyncModel');
+const reportPhotosModel = require('../models/ReportPhotosModel');
 
 async function createReport(req, res) {
-  const { longitude, latitude, city, problemTypeId } = req.body;
-
-  // DEBUG
-  console.log('db:', db);
-  console.log('db type:', typeof db);
-  console.log('admin:', admin);
+  const { longitude, latitude, city, problemTypeId, photos = [] } = req.body;
 
   if (!db) {
     return res.status(500).json({
@@ -20,7 +15,11 @@ async function createReport(req, res) {
     });
   }
 
+  const client = await pool.connect();
+
   try {
+    await client.query('BEGIN');
+
     const firebaseData = {
       reported_at: admin.firestore.FieldValue.serverTimestamp(),
       longitude: Number(longitude),
@@ -29,25 +28,47 @@ async function createReport(req, res) {
       is_synced: false,
       report_status_id: 1,
       problem_type_id: problemTypeId || 1,
-      user_id: req.user.uid
+      user_id: req.user.uid,
+      photos: photos // Ajouter les photos
     };
 
     const docRef = await db.collection('reports').add(firebaseData);
 
+    // Insérer le rapport localement (si nécessaire)
+    const localReport = await client.query(
+      `INSERT INTO reports (firebase_id, longitude, latitude, city, report_status_id, problem_type_id, user_id, is_synced)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+       RETURNING id`,
+      [docRef.id, longitude, latitude, city, 1, problemTypeId || 1, req.user.uid]
+    );
+
+    const reportId = localReport.rows[0].id;
+
+    // Ajouter les photos localement
+    if (photos && photos.length > 0) {
+      for (const photo of photos) {
+        await reportPhotosModel.addPhoto(reportId, photo, 'image/jpeg');
+      }
+    }
+
+    await client.query('COMMIT');
+
     res.status(201).json({
       firebaseId: docRef.id,
-      message: 'Signalement créé dans Firebase'
+      reportId: reportId,
+      message: 'Signalement créé avec succès',
+      photosCount: photos.length
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Erreur création report:', error);
     res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 }
 
 async function getAllReports(req, res) {
-
-  // console.log("get all");
-
   try {
     const { filter } = req.query;
 
@@ -59,13 +80,16 @@ async function getAllReports(req, res) {
         c.name as company_name,
         rstat.name as status_name, 
         pt.name as problem_type_name,
-        u.username
+        u.username,
+        COUNT(rp.id) as photos_count,
+        COALESCE(SUM(CASE WHEN rp.sent_to_firebase = true THEN 1 ELSE 0 END), 0) as synced_photos_count
       FROM reports r
       LEFT JOIN report_syncs rs ON r.id = rs.report_id
       LEFT JOIN companies c ON rs.company_id = c.id
       LEFT JOIN report_statuses rstat ON r.report_status_id = rstat.id
       LEFT JOIN problem_types pt ON r.problem_type_id = pt.id
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN report_photos rp ON r.id = rp.report_id
     `;
 
     if (filter === 'sent') {
@@ -74,7 +98,8 @@ async function getAllReports(req, res) {
       query += ` WHERE rs.sent_to_firebase = false OR rs.sent_to_firebase IS NULL`;
     }
 
-    query += ` ORDER BY r.reported_at DESC`;
+    query += ` GROUP BY r.id, rs.id, c.id, rstat.id, pt.id, u.id ORDER BY r.reported_at DESC`;
+    
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
@@ -95,14 +120,17 @@ async function getReportById(req, res) {
         c.name as company_name,
         rstat.name as status_name,
         pt.name as problem_type_name,
-        u.username
+        u.username,
+        COUNT(rp.id) as photos_count
       FROM reports r
       LEFT JOIN report_syncs rs ON r.id = rs.report_id
       LEFT JOIN companies c ON rs.company_id = c.id
       LEFT JOIN report_statuses rstat ON r.report_status_id = rstat.id
       LEFT JOIN problem_types pt ON r.problem_type_id = pt.id
       LEFT JOIN users u ON r.user_id = u.id
-      WHERE r.id = $1`,
+      LEFT JOIN report_photos rp ON r.id = rp.report_id
+      WHERE r.id = $1
+      GROUP BY r.id, rs.id, c.id, rstat.id, pt.id, u.id`,
       [id]
     );
 
@@ -110,9 +138,87 @@ async function getReportById(req, res) {
       return res.status(404).json({ error: 'Report non trouvé' });
     }
 
-    res.json(result.rows[0]);
+    const report = result.rows[0];
+    
+    // Récupérer les photos du rapport
+    report.photos = await reportPhotosModel.getReportPhotos(id);
+
+    res.json(report);
   } catch (error) {
     console.error('Erreur getReportById:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function addPhotosToReport(req, res) {
+  try {
+    const { id } = req.params;
+    const { photos } = req.body; // Array de base64 strings
+
+    if (!photos || !Array.isArray(photos) || photos.length === 0) {
+      return res.status(400).json({ error: 'Aucune photo fournie' });
+    }
+
+    // Vérifier que le rapport existe
+    const reportExists = await pool.query(
+      'SELECT id FROM reports WHERE id = $1',
+      [id]
+    );
+
+    if (reportExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Report non trouvé' });
+    }
+
+    const addedPhotos = [];
+    for (const photoBase64 of photos) {
+      const photo = await reportPhotosModel.addPhoto(id, photoBase64, 'image/jpeg');
+      addedPhotos.push(photo);
+    }
+
+    res.status(201).json({
+      message: `${addedPhotos.length} photo(s) ajoutée(s)`,
+      photos: addedPhotos
+    });
+  } catch (error) {
+    console.error('Erreur addPhotosToReport:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function getReportPhotos(req, res) {
+  try {
+    const { id } = req.params;
+
+    const photos = await reportPhotosModel.getReportPhotos(id);
+    const photosCount = await reportPhotosModel.countReportPhotos(id);
+    const syncedPhotosCount = await reportPhotosModel.countSyncedPhotos(id);
+
+    res.json({
+      report_id: id,
+      total_photos: photosCount,
+      synced_photos: syncedPhotosCount,
+      unsynced_photos: photosCount - syncedPhotosCount,
+      photos: photos
+    });
+  } catch (error) {
+    console.error('Erreur getReportPhotos:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function deleteReportPhoto(req, res) {
+  try {
+    const { reportId, photoId } = req.params;
+
+    const photo = await reportPhotosModel.deletePhoto(photoId);
+
+    if (!photo) {
+      return res.status(404).json({ error: 'Photo non trouvée' });
+    }
+
+    res.json({ message: 'Photo supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur deleteReportPhoto:', error);
     res.status(500).json({ error: error.message });
   }
 }
@@ -154,7 +260,13 @@ async function updateReport(req, res) {
     );
 
     await client.query('COMMIT');
-    res.json({ message: 'Report mis à jour avec succès' });
+    
+    const photosCount = await reportPhotosModel.countReportPhotos(id);
+
+    res.json({ 
+      message: 'Report mis à jour avec succès',
+      photosCount: photosCount
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erreur updateReport:', error);
@@ -189,10 +301,18 @@ async function uploadReport(req, res) {
       return res.status(404).json({ error: 'Report non trouvé' });
     }
 
-    await syncUpload(result.rows[0], client);
+    const report = result.rows[0];
+    
+    // Récupérer les photos non synchronisées
+    const photos = await reportPhotosModel.getUnsyncedPhotos(id);
+
+    await syncUpload(report, client, photos);
     await client.query('COMMIT');
 
-    res.json({ message: 'Report envoyé vers Firebase avec succès' });
+    res.json({ 
+      message: 'Report envoyé vers Firebase avec succès',
+      photosCount: photos.length
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erreur uploadReport:', error);
@@ -205,6 +325,7 @@ async function uploadReport(req, res) {
 async function uploadAllReports(req, res) {
   const client = await pool.connect();
   let uploadCount = 0;
+  let totalPhotos = 0;
 
   try {
     await client.query('BEGIN');
@@ -222,7 +343,9 @@ async function uploadAllReports(req, res) {
     );
 
     for (const row of result.rows) {
-      await syncUpload(row, client);
+      const photos = await reportPhotosModel.getUnsyncedPhotos(row.id);
+      totalPhotos += photos.length;
+      await syncUpload(row, client, photos);
       uploadCount++;
     }
 
@@ -230,7 +353,8 @@ async function uploadAllReports(req, res) {
 
     res.json({
       message: `${uploadCount} signalements traités envoyés vers Firebase`,
-      count: uploadCount
+      count: uploadCount,
+      photosCount: totalPhotos
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -247,13 +371,14 @@ async function syncDownloadReports(req, res) {
   try {
     await client.query('BEGIN');
     
-    const syncCount = await syncDownload(client);
+    const syncResult = await syncDownload(client);
     
     await client.query('COMMIT');
     
     res.json({
-      message: `${syncCount} signalements téléchargés depuis Firebase`,
-      count: syncCount
+      message: `${syncResult.count} signalements téléchargés depuis Firebase`,
+      count: syncResult.count,
+      photosCount: syncResult.photosCount || 0
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -300,6 +425,9 @@ module.exports = {
   createReport,
   getAllReports,
   getReportById,
+  addPhotosToReport,
+  getReportPhotos,
+  deleteReportPhoto,
   updateReport,
   uploadReport,
   uploadAllReports,

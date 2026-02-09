@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Upload, Filter, Edit, Send, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
+import { Download, Upload, Filter, Edit, Send, CheckCircle, AlertCircle, MapPin, Image, Trash2 } from 'lucide-react';
 import { reportsAPI, adminAPI, utilsAPI } from '../services/api';
 import '../assets/managerDashBoard.css';
 
@@ -11,8 +11,11 @@ const ManagerDashboard = () => {
     const [statuses, setStatuses] = useState([]);
     const [selectedReport, setSelectedReport] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [showPhotosModal, setShowPhotosModal] = useState(false);
     const [syncStats, setSyncStats] = useState({ downloaded: 0, uploaded: 0 });
     const [syncMessage, setSyncMessage] = useState('');
+    const [reportPhotos, setReportPhotos] = useState([]);
+    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
     const [formData, setFormData] = useState({
         surface: '',
@@ -73,7 +76,7 @@ const ManagerDashboard = () => {
         try {
             const response = await reportsAPI.syncDownload();
             setSyncStats(prev => ({ ...prev, downloaded: response.data.count }));
-            showMessage(`✓ ${response.data.count} signalements téléchargés depuis Firebase`, 'success');
+            showMessage(`✓ ${response.data.count} signalements téléchargés depuis Firebase${response.data.photosCount ? ` (${response.data.photosCount} photos)` : ''}`, 'success');
             loadReports();
         } catch (error) {
             console.error('Erreur synchronisation download:', error);
@@ -88,7 +91,7 @@ const ManagerDashboard = () => {
         try {
             const response = await reportsAPI.uploadAllReports();
             setSyncStats(prev => ({ ...prev, uploaded: response.data.count }));
-            showMessage(`✓ ${response.data.count} signalements envoyés vers Firebase`, 'success');
+            showMessage(`✓ ${response.data.count} signalements envoyés vers Firebase${response.data.photosCount ? ` (${response.data.photosCount} photos)` : ''}`, 'success');
             loadReports();
         } catch (error) {
             console.error('Erreur synchronisation upload:', error);
@@ -130,6 +133,30 @@ const ManagerDashboard = () => {
         } catch (error) {
             console.error('Erreur mise à jour report:', error);
             showMessage('✗ Erreur lors de la mise à jour', 'error');
+        }
+    };
+
+    const handleShowPhotos = async (report) => {
+        try {
+            const response = await reportsAPI.getReportPhotos(report.id);
+            setReportPhotos(response.data.photos);
+            setSelectedReport(report);
+            setSelectedPhotoIndex(0);
+            setShowPhotosModal(true);
+        } catch (error) {
+            console.error('Erreur chargement photos:', error);
+            showMessage('✗ Erreur lors du chargement des photos', 'error');
+        }
+    };
+
+    const handleDeletePhoto = async (photoId) => {
+        try {
+            await reportsAPI.deleteReportPhoto(selectedReport.id, photoId);
+            setReportPhotos(reportPhotos.filter(p => p.id !== photoId));
+            showMessage('✓ Photo supprimée avec succès', 'success');
+        } catch (error) {
+            console.error('Erreur suppression photo:', error);
+            showMessage('✗ Erreur lors de la suppression', 'error');
         }
     };
 
@@ -256,6 +283,7 @@ const ManagerDashboard = () => {
                                         <th>Surface</th>
                                         <th>Budget</th>
                                         <th>Entreprise</th>
+                                        <th>Photos</th>
                                         <th>Statut</th>
                                         <th>Actions</th>
                                     </tr>
@@ -282,6 +310,20 @@ const ManagerDashboard = () => {
                                                 {report.budget ? `${Number(report.budget).toLocaleString('fr-FR')} Ar` : '-'}
                                             </td>
                                             <td className="table-cell">{report.company_name || '-'}</td>
+                                            <td className="table-cell">
+                                                {report.photos_count > 0 ? (
+                                                    <button
+                                                        onClick={() => handleShowPhotos(report)}
+                                                        className="photos-badge"
+                                                        title={`${report.photos_count} photo(s)`}
+                                                    >
+                                                        <Image size={14} />
+                                                        {report.photos_count}
+                                                    </button>
+                                                ) : (
+                                                    <span className="no-photos">-</span>
+                                                )}
+                                            </td>
                                             <td className="table-cell">{getStatusBadge(report)}</td>
                                             <td className="table-cell">
                                                 <div className="action-buttons-cell">
@@ -408,6 +450,88 @@ const ManagerDashboard = () => {
                                 className="modal-button cancel-button"
                             >
                                 Annuler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal affichage des photos */}
+            {showPhotosModal && reportPhotos.length > 0 && (
+                <div className="modal-overlay">
+                    <div className="modal-container photos-modal">
+                        <h2 className="modal-title">
+                            Photos du signalement #{selectedReport.id} ({reportPhotos.length})
+                        </h2>
+
+                        <div className="photos-viewer">
+                            <div className="main-photo">
+                                <img
+                                    src={reportPhotos[selectedPhotoIndex].photo_base64}
+                                    alt={`Photo ${selectedPhotoIndex + 1}`}
+                                    className="photo-image"
+                                />
+                                <div className="photo-nav">
+                                    {selectedPhotoIndex > 0 && (
+                                        <button
+                                            onClick={() => setSelectedPhotoIndex(selectedPhotoIndex - 1)}
+                                            className="nav-button prev"
+                                        >
+                                            ‹
+                                        </button>
+                                    )}
+                                    <span className="photo-counter">
+                                        {selectedPhotoIndex + 1} / {reportPhotos.length}
+                                    </span>
+                                    {selectedPhotoIndex < reportPhotos.length - 1 && (
+                                        <button
+                                            onClick={() => setSelectedPhotoIndex(selectedPhotoIndex + 1)}
+                                            className="nav-button next"
+                                        >
+                                            ›
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {reportPhotos.length > 1 && (
+                                <div className="photo-thumbnails">
+                                    {reportPhotos.map((photo, index) => (
+                                        <div
+                                            key={photo.id}
+                                            className={`thumbnail ${index === selectedPhotoIndex ? 'active' : ''}`}
+                                            onClick={() => setSelectedPhotoIndex(index)}
+                                        >
+                                            <img src={photo.photo_base64} alt={`Thumbnail ${index + 1}`} />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="photo-actions">
+                                <button
+                                    onClick={() => handleDeletePhoto(reportPhotos[selectedPhotoIndex].id)}
+                                    className="delete-button"
+                                    title="Supprimer cette photo"
+                                >
+                                    <Trash2 size={16} />
+                                    Supprimer
+                                </button>
+                                <div className="photo-info">
+                                    <span>Téléchargée: {new Date(reportPhotos[selectedPhotoIndex].uploaded_at).toLocaleDateString('fr-FR')}</span>
+                                    <span className={reportPhotos[selectedPhotoIndex].sent_to_firebase ? 'synced' : 'unsynced'}>
+                                        {reportPhotos[selectedPhotoIndex].sent_to_firebase ? '✓ Synchronisée' : '⊘ Non synchronisée'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="modal-buttons">
+                            <button
+                                onClick={() => setShowPhotosModal(false)}
+                                className="modal-button cancel-button"
+                            >
+                                Fermer
                             </button>
                         </div>
                     </div>
