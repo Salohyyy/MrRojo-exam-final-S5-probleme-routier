@@ -1,0 +1,65 @@
+Tu es un développeur fullstack senior spécialisé en Node.js, Firebase et applications mobiles.
+
+CONTEXTE DU PROJET :
+- Architecture avec un backend Node.js (Express) unique, utilisé par le web et le mobile
+- Backend exécuté en local via Docker
+- Base de données principale : PostgreSQL
+- Firebase utilisé pour :
+  - Authentification (Custom Token)
+  - Notifications push (Firebase Cloud Messaging)
+- Application mobile (React Native ou Expo)
+
+OBJECTIF :
+Mettre en place un système de notifications push pour l’application mobile.
+Un utilisateur doit recevoir une notification lorsqu’un signalement qu’il a créé subit une modification
+(exemple : changement de statut).
+
+CONTRAINTES IMPORTANTES :
+- Le mobile ne décide jamais quand envoyer une notification
+- Le backend est l’unique autorité pour l’envoi des notifications
+- Les notifications doivent être envoyées via Firebase Cloud Messaging (FCM)
+- Un utilisateur peut avoir plusieurs appareils
+- Le système doit être sécurisé et cohérent avec l’authentification existante
+
+TÂCHES À RÉALISER :
+
+1) CÔTÉ MOBILE
+- Configurer Firebase Cloud Messaging
+- Demander l’autorisation de recevoir des notifications
+- Récupérer le token FCM de l’appareil après un login réussi
+- Envoyer ce token au backend via une API REST
+- Gérer la réception des notifications lorsque :
+  - l’application est en arrière-plan
+  - l’application est ouverte
+
+2) BACKEND (NODE.JS / EXPRESS)
+- Ajouter une table PostgreSQL pour stocker les tokens FCM des appareils utilisateurs
+  Exemple :
+  user_devices(id, user_id, fcm_token, created_at)
+- Créer une API :
+  POST /api/notifications/register
+  qui associe un token FCM à un utilisateur
+- Mettre en place un service d’envoi de notifications utilisant Firebase Admin SDK
+- Lorsqu’un signalement change de statut :
+  - identifier le propriétaire du signalement
+  - récupérer tous ses tokens FCM
+  - envoyer une notification push à tous ses appareils
+
+3) FIREBASE
+- Utiliser Firebase Admin SDK côté backend
+- Utiliser Firebase Cloud Messaging pour l’envoi des notifications
+- Ne jamais exposer les clés Firebase Admin côté mobile
+
+4) BONNES PRATIQUES
+- Code structuré (controller / service / repository)
+- Code commenté
+- Gestion des erreurs
+- Suppression ou mise à jour des tokens FCM invalides
+
+RÉSULTAT ATTENDU :
+- Un utilisateur reçoit automatiquement une notification push sur son mobile
+  lorsqu’un de ses signalements est modifié
+- Le système fonctionne avec le backend Docker en local
+- Le code est clair, maintenable et directement utilisable
+
+Génère le code nécessaire côté backend et côté mobile, avec les explications essentielles.

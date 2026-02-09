@@ -46,9 +46,10 @@ function Login({ onLoginSuccess, onVisitorClick }) {
             <label style={styles.label}>Nom d'utilisateur ou Email</label>
             <input
               type="text"
-              placeholder="admin ou admin@example.com"
+              value={username}
               onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
+              placeholder="admin ou admin@example.com"
               required
               disabled={loading}
               autoFocus
@@ -59,9 +60,10 @@ function Login({ onLoginSuccess, onVisitorClick }) {
             <label style={styles.label}>Mot de passe</label>
             <input
               type="password"
-              placeholder="admin123"
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
+              placeholder="••••••••"
               required
               disabled={loading}
             />
