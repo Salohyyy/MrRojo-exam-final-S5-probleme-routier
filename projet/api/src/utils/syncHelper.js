@@ -10,12 +10,19 @@ async function syncUserToPostgres(firebaseUser) {
         );
 
         if (result.rows.length > 0) {
+            // Mettre à jour le firebase_uid s'il est fourni et pas encore enregistré
+            if (firebaseUser.uid) {
+                await pool.query(
+                    'UPDATE users SET firebase_uid = $1 WHERE id = $2 AND (firebase_uid IS NULL OR firebase_uid = $1)',
+                    [firebaseUser.uid, result.rows[0].id]
+                );
+            }
             return result.rows[0].id;
         }
 
         const insertResult = await pool.query(
-            'INSERT INTO users (username, email, user_status_id) VALUES ($1, $2, $3) RETURNING id',
-            [firebaseUser.displayName || firebaseUser.email, firebaseUser.email, 1]
+            'INSERT INTO users (username, email, firebase_uid, user_status_id) VALUES ($1, $2, $3, $4) RETURNING id',
+            [firebaseUser.displayName || firebaseUser.email, firebaseUser.email, firebaseUser.uid || null, 1]
         );
 
         return insertResult.rows[0].id;

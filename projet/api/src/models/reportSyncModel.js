@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const notificationService = require('../services/notificationService');
 
 const getAllReportSyncs = async () => {
   const result = await pool.query(`
@@ -88,6 +89,19 @@ const updateReportSyncStatus = async (id, statusId, progress) => {
           INSERT INTO report_sync_histories (changed_at, report_status_id, report_sync_id)
           VALUES (NOW(), $1, $2)
         `, [statusId, id]);
+
+        // Envoyer une notification push au propriétaire du signalement
+        // (async, ne bloque pas la transaction)
+        const syncData = result.rows[0];
+        if (syncData && syncData.report_id) {
+          notificationService.notifyReportStatusChange(syncData.report_id, statusId)
+            .then(notifResult => {
+              if (notifResult) {
+                console.log(`📬 Notification envoyée pour le signalement ${syncData.report_id}`);
+              }
+            })
+            .catch(err => console.error('Erreur notification:', err));
+        }
       }
       await client.query('COMMIT');
     } else {

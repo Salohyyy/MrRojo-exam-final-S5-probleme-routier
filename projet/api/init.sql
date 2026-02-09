@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50),
     email VARCHAR(50) UNIQUE,
+    firebase_uid VARCHAR(255) UNIQUE,    -- Firebase UID pour les notifications push
     birth_date DATE,
     user_status_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -98,6 +99,25 @@ CREATE TABLE IF NOT EXISTS report_sync_histories (
     FOREIGN KEY (report_sync_id) REFERENCES report_syncs(id)
 );
 
+-- ============================================
+-- TABLE POUR LES TOKENS FCM (NOTIFICATIONS PUSH)
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_devices (
+    id BIGSERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,        -- Firebase UID de l'utilisateur
+    fcm_token TEXT NOT NULL UNIQUE,        -- Token FCM unique par appareil
+    device_info VARCHAR(255),              -- Info optionnelle sur l'appareil
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index pour rechercher rapidement les tokens par utilisateur
+CREATE INDEX IF NOT EXISTS idx_user_devices_user_id ON user_devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_devices_fcm_token ON user_devices(fcm_token);
+
+-- Trigger pour mettre à jour updated_at sur user_devices
+-- (sera créé après la définition de la fonction update_updated_at_column)
+
 -- Index pour améliorer les performances
 CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 CREATE INDEX IF NOT EXISTS idx_employees_username ON employees(username);
@@ -115,6 +135,18 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_employees_updated_at 
     BEFORE UPDATE ON employees
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger pour user_devices
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_devices_updated_at'
+    ) THEN
+        CREATE TRIGGER update_user_devices_updated_at
+            BEFORE UPDATE ON user_devices
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- ============================================
 -- DONNÉES INITIALES
