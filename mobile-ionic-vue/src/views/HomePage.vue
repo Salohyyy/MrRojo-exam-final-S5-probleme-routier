@@ -7,6 +7,11 @@
           Suivi des Travaux
         </ion-title>
         <ion-buttons slot="end">
+          <!-- Cloche de notifications (visible si connecté) -->
+          <ion-button v-if="isAuthenticated" @click="toggleNotifications" class="auth-button notif-bell">
+            <ion-icon slot="icon-only" :icon="notificationsOutline"></ion-icon>
+            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount }}</span>
+          </ion-button>
           <ion-button v-if="!isAuthenticated" @click="goToLogin" class="auth-button">
             <ion-icon slot="icon-only" :icon="logInOutline"></ion-icon>
           </ion-button>
@@ -18,6 +23,37 @@
     </ion-header>
 
     <ion-content :fullscreen="true" class="content-airbnb">
+      <!-- Panneau de notifications -->
+      <div v-if="showNotifications" class="notifications-panel">
+        <div class="notif-panel-header">
+          <span class="notif-panel-title">🔔 Notifications</span>
+          <ion-button fill="clear" size="small" @click="showNotifications = false">
+            <ion-icon :icon="closeOutline"></ion-icon>
+          </ion-button>
+        </div>
+        <div v-if="notifications.length === 0" class="notif-empty">
+          <p>Aucune notification</p>
+          <p class="notif-hint" v-if="isListening">Vous serez notifié lorsqu'un signalement sera mis à jour</p>
+        </div>
+        <div v-else class="notif-list">
+          <div
+            v-for="notif in notifications"
+            :key="notif.id"
+            class="notif-item"
+            :class="{ 'notif-unread': !notif.read }"
+          >
+            <div class="notif-item-title">{{ notif.title }}</div>
+            <div class="notif-item-body">{{ notif.body }}</div>
+            <div class="notif-item-time">{{ formatTime(notif.timestamp) }}</div>
+          </div>
+        </div>
+        <div v-if="notifications.length > 0" class="notif-panel-footer">
+          <ion-button fill="clear" size="small" @click="clearNotifications">
+            Tout effacer
+          </ion-button>
+        </div>
+      </div>
+
       <!-- Segment pour basculer entre les vues -->
       <div class="segment-container">
         <ion-segment :value="currentView" @ionChange="handleViewChange">
@@ -95,6 +131,27 @@
 
       <!-- Vue Statistiques -->
       <div v-show="currentView === 'stats'" class="stats-view">
+        <!-- Filtre Tous / Mes Signalements -->
+        <div v-if="isAuthenticated" class="filter-bar">
+          <ion-button 
+            :fill="filterMode === 'all' ? 'solid' : 'outline'" 
+            size="small" 
+            @click="handleFilter('all')"
+            class="filter-btn"
+          >
+            <ion-icon slot="start" :icon="listOutline"></ion-icon>
+            Tous
+          </ion-button>
+          <ion-button 
+            :fill="filterMode === 'mine' ? 'solid' : 'outline'" 
+            size="small" 
+            @click="handleFilter('mine')"
+            class="filter-btn"
+          >
+            <ion-icon slot="start" :icon="personOutline"></ion-icon>
+            Mes signalements
+          </ion-button>
+        </div>
         <div class="stats-grid">
           <div class="stat-card primary">
             <div class="stat-icon">📊</div>
@@ -130,7 +187,7 @@
         <div class="projects-section">
           <h2 class="section-title">Détails des projets</h2>
           <div class="projects-list">
-            <div v-for="item in items" :key="item.id" class="project-card">
+            <div v-for="item in displayedItems" :key="item.id" class="project-card">
               <div class="project-header">
                 <div class="project-location">
                   <span class="problem-icon-card">{{ getProblemIcon(item.problem_type_id) }}</span>
@@ -267,13 +324,14 @@
 
 <script setup lang="ts">
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonModal, IonButton, IonInput, IonSelect, IonSelectOption, IonButtons, IonIcon, IonSegment, IonSegmentButton, alertController } from '@ionic/vue';
-import { logInOutline, logOutOutline, mapOutline, statsChartOutline, locationOutline, closeOutline, cameraOutline, imagesOutline, closeCircle } from 'ionicons/icons';
+import { logInOutline, logOutOutline, mapOutline, statsChartOutline, locationOutline, closeOutline, cameraOutline, imagesOutline, closeCircle, notificationsOutline, personOutline, listOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReports } from '../composables/useReports';
 import { useMap } from '../composables/useMap';
 import { useReportForm } from '../composables/useReportForm';
 import { useAuth } from '../composables/useAuth';
+import { useNotifications } from '../composables/useNotifications';
 import { formatMoney } from '../utils/formatters';
 import { COLORS } from '../constants/theme.constants';
 import { PROBLEM_STYLES, DEFAULT_STYLE } from '../constants/map.constants';
@@ -282,7 +340,8 @@ const router = useRouter();
 const currentView = ref('map');
 
 // Utilisation des composables
-const { items, totalItems, totalBudget, avgProgress, totalTermines, loadReports } = useReports();
+const { displayedItems, totalItems, totalBudget, avgProgress, totalTermines, filterMode, loadReports, loadMyReports, setFilter } = useReports();
+const { currentUser, isAuthenticated, logout } = useAuth();
 const { initializeMap, onMapClick } = useMap('map');
 const { 
   showModal, 
@@ -301,7 +360,26 @@ const {
   pickPhoto,
   removePhoto
 } = useReportForm();
-const { isAuthenticated, logout } = useAuth();
+
+async function handleFilter(mode: 'all' | 'mine') {
+  setFilter(mode);
+  if (mode === 'mine' && currentUser.value) {
+    await loadMyReports(currentUser.value.uid);
+  }
+}
+const { notifications, unreadCount, isListening, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
+const showNotifications = ref(false);
+
+function toggleNotifications() {
+  showNotifications.value = !showNotifications.value;
+  if (showNotifications.value) {
+    markAllAsRead();
+  }
+}
+
+function formatTime(date: Date): string {
+  return new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
 
 async function handleMapClick(lat: number, lng: number) {
   if (!isAuthenticated.value) {
@@ -552,6 +630,30 @@ ion-segment-button {
   padding: 16px;
   overflow-y: auto;
   height: calc(100vh - 140px);
+}
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-btn {
+  --border-radius: 20px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  --background: #FF385C;
+  --color: #fff;
+  --border-color: #FF385C;
+}
+
+.filter-btn[fill="outline"] {
+  --background: transparent;
+  --color: #FF385C;
 }
 
 .stats-grid {
@@ -950,5 +1052,112 @@ ion-segment-button {
   .legend-items {
     gap: 3px;
   }
+}
+
+/* ── Notification Bell & Panel ── */
+.notif-bell {
+  position: relative;
+}
+
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  background: #FF385C;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.notifications-panel {
+  position: relative;
+  z-index: 100;
+  background: white;
+  border-bottom: 1px solid #E8E8E8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.notif-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px 4px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.notif-panel-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.notif-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: #767676;
+}
+
+.notif-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.notif-hint {
+  font-size: 12px;
+  color: #B0B0B0;
+  margin-top: 4px !important;
+}
+
+.notif-list {
+  padding: 0;
+}
+
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F5F5F5;
+  transition: background-color 0.2s;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-unread {
+  background-color: #FFF5F6;
+  border-left: 3px solid #FF385C;
+}
+
+.notif-item-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #222;
+  margin-bottom: 2px;
+}
+
+.notif-item-body {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.notif-item-time {
+  font-size: 11px;
+  color: #B0B0B0;
+  margin-top: 4px;
+}
+
+.notif-panel-footer {
+  text-align: center;
+  padding: 4px;
+  border-top: 1px solid #F0F0F0;
 }
 </style>

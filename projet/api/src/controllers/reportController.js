@@ -4,7 +4,6 @@ const { db } = require('../config/firebase');
 const admin = require('firebase-admin');
 const { syncUserToPostgres, syncDownload, syncUpload } = require('../utils/syncHelper');
 const reportSyncModel = require('../models/reportSyncModel');
-const notificationService = require('../services/notificationService');
 
 async function createReport(req, res) {
   const { longitude, latitude, city, problemTypeId } = req.body;
@@ -155,16 +154,6 @@ async function updateReport(req, res) {
     );
 
     await client.query('COMMIT');
-    
-    // Envoyer une notification push si le statut a changé
-    if (reportStatusId) {
-      notificationService.notifyReportStatusChange(id, reportStatusId)
-        .then(result => {
-          if (result) console.log(`📬 Notification envoyée pour le report ${id}`);
-        })
-        .catch(err => console.error('Erreur notification:', err));
-    }
-
     res.json({ message: 'Report mis à jour avec succès' });
   } catch (error) {
     await client.query('ROLLBACK');

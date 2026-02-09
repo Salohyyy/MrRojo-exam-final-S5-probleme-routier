@@ -1,162 +1,264 @@
 /**
  * Composable useNotifications
  * 
- * Gère l'ensemble du cycle de vie des notifications push :
- * 1. Vérification des permissions
- * 2. Demande d'autorisation
- * 3. Récupération du token FCM
- * 4. Envoi du token au backend
- * 5. Écoute des notifications (foreground et background)
- * 6. Nettoyage lors du logout
+ * ══════════════════════════════════════════════════════════════
+ * SYSTÈME DE NOTIFICATIONS LOCALES BASÉ SUR FIRESTORE TEMPS RÉEL
+ * ══════════════════════════════════════════════════════════════
+ * 
+ * Architecture simple (sans backend, sans FCM) :
+ * 
+ *   Firestore (onSnapshot) ──► Détection changement statut ──► Notification locale
+ * 
+ * Fonctionnement :
+ * 1. Après le login, on démarre un listener onSnapshot sur la collection "reports"
+ *    filtré par user_id = utilisateur connecté
+ * 2. Au PREMIER chargement, on stocke les statuts actuels sans notifier (éviter les faux positifs)
+ * 3. Pour chaque modification détectée ensuite :
+ *    - On compare l'ancien statut (en cache) avec le nouveau
+ *    - Si le statut a changé → notification locale
+ *    - On met à jour le cache
+ * 4. Au logout, on arrête le listener et on vide le cache
  * 
  * Usage :
- *   const { initNotifications, cleanupNotifications } = useNotifications();
- *   // Après login réussi :
- *   await initNotifications();
- *   // Lors du logout :
- *   await cleanupNotifications();
+ *   const { startListening, stopListening, notifications } = useNotifications();
+ *   // Après login :
+ *   startListening(user.uid);
+ *   // Au logout :
+ *   stopListening();
  */
 
-import { ref } from 'vue';
-import { PushNotifications, PushNotificationSchema, ActionPerformed, Token } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
-import { notificationService } from '../services/notification.service';
+import { ref, computed } from 'vue';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  type Unsubscribe,
+  type DocumentChange
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import {
+  requestNotificationPermission,
+  showLocalNotification,
+  setupNotificationListeners
+} from '../services/notification.service';
 
-// État partagé (singleton)
-const fcmToken = ref<string | null>(null);
-const notifications = ref<PushNotificationSchema[]>([]);
-const isRegistered = ref(false);
-const permissionGranted = ref(false);
+// ─── Types ───────────────────────────────────────────────────
+
+/** Représente une notification affichée à l'utilisateur */
+interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  reportId: string;
+  timestamp: Date;
+  read: boolean;
+}
+
+/** Mapping des IDs de statut vers des libellés lisibles */
+const STATUS_LABELS: Record<string, string> = {
+  '1': 'En attente',
+  '2': 'Signalé',
+  '3': 'En cours de traitement',
+  '4': 'En cours de réparation',
+  '5': 'Terminé',
+  '6': 'Rejeté'
+};
+
+/**
+ * Retourne le libellé lisible d'un statut
+ */
+function getStatusLabel(statusId: string | number): string {
+  return STATUS_LABELS[String(statusId)] || `Statut ${statusId}`;
+}
+
+// ─── État partagé (singleton) ────────────────────────────────
+
+/** Cache des statuts : reportId → dernier report_status_id connu */
+const statusCache = ref<Map<string, string>>(new Map());
+
+/** Historique des notifications affichées */
+const notifications = ref<NotificationItem[]>([]);
+
+/** Indique si le listener est actif */
+const isListening = ref(false);
+
+/** Nombre de notifications non lues */
+const unreadCount = computed(() =>
+  notifications.value.filter(n => !n.read).length
+);
+
+/** Flag pour ignorer le premier snapshot (chargement initial) */
+let isFirstSnapshot = true;
+
+/** Référence vers la fonction de désinscription du listener */
+let unsubscribe: Unsubscribe | null = null;
+
+// ─── Composable ──────────────────────────────────────────────
 
 export function useNotifications() {
 
   /**
-   * Initialise les notifications push.
-   * À appeler après un login Firebase réussi.
+   * Démarre l'écoute en temps réel des signalements de l'utilisateur.
+   * Appeler cette fonction APRÈS un login réussi.
+   * 
+   * @param userId - Firebase UID de l'utilisateur connecté
    */
-  async function initNotifications(): Promise<boolean> {
-    // Vérifier que l'on est bien sur un appareil natif
-    if (!Capacitor.isNativePlatform()) {
-      console.warn('[Notifications] Push non disponible sur le web, uniquement sur mobile natif');
-      return false;
+  async function startListening(userId: string): Promise<void> {
+    // Éviter les doublons de listeners
+    if (isListening.value) {
+      console.log('[Notifications] Listener déjà actif');
+      return;
     }
 
-    try {
-      // 1. Vérifier/demander les permissions
-      let permStatus = await PushNotifications.checkPermissions();
+    // Demander la permission de notifications
+    await requestNotificationPermission();
+    setupNotificationListeners();
 
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
+    // Reset de l'état
+    isFirstSnapshot = true;
+    statusCache.value.clear();
+
+    console.log(`[Notifications] Démarrage écoute pour l'utilisateur: ${userId}`);
+
+    // ────────────────────────────────────────────────────────
+    // LISTENER FIRESTORE onSnapshot
+    // Écoute la collection "reports" filtrée par user_id
+    // ────────────────────────────────────────────────────────
+    const reportsQuery = query(
+      collection(db, 'reports'),
+      where('user_id', '==', userId)
+    );
+
+    unsubscribe = onSnapshot(reportsQuery, (snapshot) => {
+      // ╔══════════════════════════════════════════════════════╗
+      // ║ PREMIER SNAPSHOT = chargement initial                ║
+      // ║ On stocke les statuts actuels SANS notifier          ║
+      // ║ pour éviter les fausses notifications                ║
+      // ╚══════════════════════════════════════════════════════╝
+      if (isFirstSnapshot) {
+        console.log(`[Notifications] Chargement initial: ${snapshot.docs.length} signalement(s)`);
+
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const statusId = String(data.report_status_id || '');
+          statusCache.value.set(doc.id, statusId);
+        });
+
+        isFirstSnapshot = false;
+        isListening.value = true;
+        console.log('[Notifications] Cache initialisé, écoute active ✅');
+        return; // NE PAS notifier au premier chargement
       }
 
-      if (permStatus.receive !== 'granted') {
-        console.warn('[Notifications] Permission refusée par l\'utilisateur');
-        permissionGranted.value = false;
-        return false;
-      }
+      // ╔══════════════════════════════════════════════════════╗
+      // ║ SNAPSHOTS SUIVANTS = modifications en temps réel     ║
+      // ║ On ne traite que les documents MODIFIÉS              ║
+      // ╚══════════════════════════════════════════════════════╝
+      snapshot.docChanges().forEach((change: DocumentChange) => {
+        // On ignore les créations et suppressions
+        if (change.type !== 'modified') return;
 
-      permissionGranted.value = true;
+        const doc = change.doc;
+        const data = doc.data();
+        const newStatusId = String(data.report_status_id || '');
+        const oldStatusId = statusCache.value.get(doc.id);
 
-      // 2. Configurer les listeners AVANT l'enregistrement
-      setupListeners();
+        // Vérifier si le statut a RÉELLEMENT changé
+        if (oldStatusId !== undefined && oldStatusId !== newStatusId) {
+          const city = data.city || 'Inconnu';
+          const oldLabel = getStatusLabel(oldStatusId);
+          const newLabel = getStatusLabel(newStatusId);
 
-      // 3. S'enregistrer auprès d'APNs/FCM
-      await PushNotifications.register();
+          console.log(
+            `[Notifications] Changement détecté sur ${doc.id}: ` +
+            `"${oldLabel}" → "${newLabel}"`
+          );
 
-      console.log('[Notifications] Enregistrement push initié');
-      return true;
-    } catch (error) {
-      console.error('[Notifications] Erreur initialisation:', error);
-      return false;
+          // Créer la notification
+          const title = `📍 Signalement mis à jour`;
+          const body = `Votre signalement à ${city} est passé de "${oldLabel}" à "${newLabel}"`;
+
+          // Afficher la notification locale
+          showLocalNotification(title, body, {
+            reportId: doc.id,
+            oldStatus: oldStatusId,
+            newStatus: newStatusId
+          });
+
+          // Ajouter à l'historique des notifications
+          notifications.value.unshift({
+            id: `notif-${Date.now()}-${doc.id}`,
+            title,
+            body,
+            reportId: doc.id,
+            timestamp: new Date(),
+            read: false
+          });
+        }
+
+        // Mettre à jour le cache avec le nouveau statut
+        statusCache.value.set(doc.id, newStatusId);
+      });
+    }, (error) => {
+      console.error('[Notifications] Erreur listener Firestore:', error);
+      isListening.value = false;
+    });
+  }
+
+  /**
+   * Arrête l'écoute en temps réel.
+   * Appeler cette fonction AVANT ou PENDANT le logout.
+   */
+  function stopListening(): void {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+      console.log('[Notifications] Listener Firestore arrêté');
+    }
+
+    // Reset complet de l'état
+    isListening.value = false;
+    isFirstSnapshot = true;
+    statusCache.value.clear();
+    notifications.value = [];
+  }
+
+  /**
+   * Marque une notification comme lue.
+   */
+  function markAsRead(notificationId: string): void {
+    const notif = notifications.value.find(n => n.id === notificationId);
+    if (notif) {
+      notif.read = true;
     }
   }
 
   /**
-   * Configure les listeners pour les événements push.
+   * Marque toutes les notifications comme lues.
    */
-  function setupListeners() {
-    // Succès de l'enregistrement : on reçoit le token FCM
-    PushNotifications.addListener('registration', async (token: Token) => {
-      console.log('[Notifications] Token FCM reçu:', token.value);
-      fcmToken.value = token.value;
-
-      // Envoyer le token au backend
-      const success = await notificationService.registerTokenOnBackend(token.value);
-      isRegistered.value = success;
-
-      if (success) {
-        console.log('[Notifications] Token enregistré sur le backend ✅');
-      } else {
-        console.error('[Notifications] Échec enregistrement token sur le backend ❌');
-      }
-    });
-
-    // Erreur d'enregistrement
-    PushNotifications.addListener('registrationError', (error: any) => {
-      console.error('[Notifications] Erreur enregistrement:', error);
-      isRegistered.value = false;
-    });
-
-    // Notification reçue quand l'app est au premier plan (foreground)
-    PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-      console.log('[Notifications] Notification reçue (foreground):', notification);
-      notifications.value.push(notification);
-
-      // Optionnel : afficher un toast/alert Ionic pour les notifications foreground
-      // car par défaut elles ne sont pas affichées dans la barre de notifications
-    });
-
-    // L'utilisateur a tapé sur une notification (app en background ou fermée)
-    PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
-      console.log('[Notifications] Action sur notification:', action);
-
-      const data = action.notification.data;
-
-      // Gérer la navigation selon le type de notification
-      if (data?.type === 'report_status_change' && data?.reportId) {
-        console.log(`[Notifications] Navigation vers le signalement #${data.reportId}`);
-        // On pourrait utiliser le router ici pour naviguer vers le détail
-        // router.push(`/report/${data.reportId}`);
-      }
-    });
+  function markAllAsRead(): void {
+    notifications.value.forEach(n => { n.read = true; });
   }
 
   /**
-   * Nettoie les notifications lors du logout.
-   * Supprime le token du backend et retire les listeners.
+   * Supprime toutes les notifications de l'historique.
    */
-  async function cleanupNotifications(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) return;
-
-    try {
-      // Supprimer le token du backend
-      if (fcmToken.value) {
-        await notificationService.unregisterTokenOnBackend(fcmToken.value);
-      }
-
-      // Nettoyer les listeners
-      await PushNotifications.removeAllListeners();
-
-      // Reset de l'état
-      fcmToken.value = null;
-      isRegistered.value = false;
-      notifications.value = [];
-
-      console.log('[Notifications] Nettoyage effectué');
-    } catch (error) {
-      console.error('[Notifications] Erreur nettoyage:', error);
-    }
+  function clearNotifications(): void {
+    notifications.value = [];
   }
 
   return {
-    // État
-    fcmToken,
+    // État réactif
     notifications,
-    isRegistered,
-    permissionGranted,
+    isListening,
+    unreadCount,
 
     // Actions
-    initNotifications,
-    cleanupNotifications
+    startListening,
+    stopListening,
+    markAsRead,
+    markAllAsRead,
+    clearNotifications
   };
 }

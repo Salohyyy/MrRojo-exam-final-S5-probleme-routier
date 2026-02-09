@@ -11,7 +11,6 @@ const adminRoutes = require('./routes/admin');
 const utilsRoutes = require('./routes/utils');
 const managerRoutes = require('./routes/managerRoutes');
 const visitorRoutes = require('./routes/visitorReports');
-const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,7 +28,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/utils', utilsRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/visitor/reports', visitorRoutes);
-app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -42,11 +40,6 @@ async function startServer() {
     await initDatabase();
     console.log('✓ Base de données initialisée');
 
-    // S'assurer que la table user_devices existe (notifications push)
-    const userDeviceModel = require('./models/userDeviceModel');
-    await userDeviceModel.ensureTable();
-    console.log('✓ Table user_devices prête');
-
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`✓ Serveur démarré sur le port ${PORT}`);
       console.log('');
@@ -56,7 +49,6 @@ async function startServer() {
       console.log('   - POST /api/auth/failed-attempt');
       console.log('   - POST /api/auth/successful-login');
       console.log('   - GET  /api/admin/*');
-      console.log('   - POST /api/notifications/register');
       console.log('');
       console.log('🔐 Admin par défaut: admin / admin123');
     });

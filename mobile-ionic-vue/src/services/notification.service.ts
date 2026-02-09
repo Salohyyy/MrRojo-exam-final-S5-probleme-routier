@@ -1,93 +1,102 @@
 /**
- * Service de Notifications Push pour le mobile
+ * Service de Notifications Locales
  * 
- * Utilise @capacitor/push-notifications pour :
- * - Demander l'autorisation de notifications
- * - Récupérer le token FCM
- * - Écouter les notifications reçues (foreground et background)
- * - Enregistrer/supprimer le token auprès du backend
+ * Utilise @capacitor/local-notifications pour afficher des notifications
+ * sur l'appareil SANS backend, SANS FCM.
+ * 
+ * Les notifications sont déclenchées localement lorsqu'un changement
+ * de statut est détecté via Firestore onSnapshot.
  */
 
-import { PushNotifications, PushNotificationSchema, ActionPerformed, Token } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
-import { auth } from '../config/firebase';
 
-// URL de l'API backend
-const API_URL = 'http://10.0.2.2:4000'; // Android emulator -> localhost
-// Pour appareil physique, utiliser l'IP locale du PC: 'http://192.168.x.x:4000'
+// Compteur pour générer des IDs uniques de notification
+let notificationIdCounter = 1;
 
 /**
- * Récupère le token Bearer Firebase de l'utilisateur courant
+ * Demande la permission d'afficher des notifications locales.
+ * À appeler une fois au démarrage ou après le login.
+ * 
+ * @returns {boolean} true si la permission est accordée
  */
-async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
-}
-
-/**
- * Enregistre un token FCM auprès du backend
- */
-async function registerTokenOnBackend(fcmToken: string): Promise<boolean> {
-  try {
-    const authToken = await getAuthToken();
-    if (!authToken) {
-      console.error('[Notifications] Utilisateur non authentifié');
-      return false;
-    }
-
-    const response = await fetch(`${API_URL}/api/notifications/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        fcmToken,
-        deviceInfo: `${Capacitor.getPlatform()} - ${navigator.userAgent.slice(0, 50)}`
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('[Notifications] Erreur enregistrement token:', error);
-      return false;
-    }
-
-    console.log('[Notifications] Token FCM enregistré sur le backend');
+export async function requestNotificationPermission(): Promise<boolean> {
+  // Sur le web (dev), pas de notifications natives
+  if (!Capacitor.isNativePlatform()) {
+    console.log('[Notifications] Mode web détecté — notifications simulées en console');
     return true;
+  }
+
+  try {
+    // Vérifier les permissions actuelles
+    let permStatus = await LocalNotifications.checkPermissions();
+
+    if (permStatus.display === 'prompt') {
+      // Demander la permission à l'utilisateur
+      permStatus = await LocalNotifications.requestPermissions();
+    }
+
+    const granted = permStatus.display === 'granted';
+    console.log('[Notifications] Permission:', granted ? 'accordée ✅' : 'refusée ❌');
+    return granted;
   } catch (error) {
-    console.error('[Notifications] Erreur réseau enregistrement token:', error);
+    console.error('[Notifications] Erreur demande permission:', error);
     return false;
   }
 }
 
 /**
- * Supprime un token FCM du backend (lors du logout)
+ * Affiche une notification locale sur l'appareil.
+ * 
+ * @param title - Titre de la notification
+ * @param body - Corps/contenu de la notification
+ * @param data - Données supplémentaires (optionnel)
  */
-async function unregisterTokenOnBackend(fcmToken: string): Promise<boolean> {
+export async function showLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<void> {
+  // Mode web (dev) : afficher en console uniquement
+  if (!Capacitor.isNativePlatform()) {
+    console.log(`🔔 [Notification locale] ${title}: ${body}`);
+    return;
+  }
+
   try {
-    const authToken = await getAuthToken();
-    if (!authToken) return false;
-
-    const response = await fetch(`${API_URL}/api/notifications/unregister`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({ fcmToken })
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: notificationIdCounter++,
+          title,
+          body,
+          // Notification immédiate
+          schedule: { at: new Date(Date.now() + 500) },
+          // Données extra accessibles lors du clic
+          extra: data || {}
+        }
+      ]
     });
-
-    return response.ok;
+    console.log(`🔔 Notification locale affichée: ${title}`);
   } catch (error) {
-    console.error('[Notifications] Erreur suppression token:', error);
-    return false;
+    console.error('[Notifications] Erreur affichage notification:', error);
   }
 }
 
-export const notificationService = {
-  registerTokenOnBackend,
-  unregisterTokenOnBackend,
-  getAuthToken
-};
+/**
+ * Configure le listener pour les clics sur les notifications.
+ * Permet de naviguer vers un signalement quand l'utilisateur tape dessus.
+ */
+export function setupNotificationListeners(): void {
+  if (!Capacitor.isNativePlatform()) return;
+
+  LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+    console.log('[Notifications] Clic sur notification:', action);
+    const data = action.notification.extra;
+
+    // On pourrait naviguer vers le détail du signalement ici
+    if (data?.reportId) {
+      console.log(`[Notifications] Signalement #${data.reportId} cliqué`);
+    }
+  });
+}

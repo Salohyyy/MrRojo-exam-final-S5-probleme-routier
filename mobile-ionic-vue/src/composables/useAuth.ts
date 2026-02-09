@@ -10,13 +10,18 @@ let isInitialized = false;
 
 export function useAuth() {
   const isAuthenticated = computed(() => currentUser.value !== null);
-  const { initNotifications, cleanupNotifications } = useNotifications();
+  const { startListening, stopListening } = useNotifications();
 
   // Initialiser une seule fois
   if (!isInitialized) {
     authService.onAuthStateChanged((user) => {
       currentUser.value = user;
       isLoading.value = false;
+
+      // Démarrer l'écoute des notifications si l'utilisateur est connecté
+      if (user) {
+        startListening(user.uid);
+      }
     });
     isInitialized = true;
   }
@@ -26,10 +31,8 @@ export function useAuth() {
       const user = await authService.login(email, password);
       currentUser.value = user;
 
-      // Initialiser les notifications push après un login réussi
-      initNotifications().then(success => {
-        console.log('[Auth] Notifications push:', success ? 'activées ✅' : 'non disponibles');
-      });
+      // Démarrer l'écoute en temps réel des signalements
+      startListening(user.uid);
 
       return { success: true, user };
     } catch (error: any) {
@@ -40,8 +43,8 @@ export function useAuth() {
 
   async function logout() {
     try {
-      // Nettoyer les notifications push avant le logout
-      await cleanupNotifications();
+      // Arrêter l'écoute des notifications AVANT le logout
+      stopListening();
 
       await authService.logout();
       currentUser.value = null;
