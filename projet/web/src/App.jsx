@@ -9,6 +9,7 @@ import ManagerDashboard from './components/ManagerDashboard';
 import MapReports from './components/map/MapReports';
 import DashboardStats from './components/stats/DashboardStats';
 import ReportSyncs from './components/ReportSyncs';
+import UserManagement from './components/UserManagement';
 import { LayoutDashboard } from 'lucide-react';
 
 function App() {
@@ -286,6 +287,15 @@ function App() {
           🏗️ Suivi Chantiers
         </button>
         <button
+          onClick={() => setActiveTab('user-management')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'user-management' ? styles.tabActive : {})
+          }}
+        >
+          👥 Utilisateurs
+        </button>
+        <button
           onClick={() => setShowUserInterface('visitor')}
           style={styles.testButton}
         >
@@ -307,6 +317,7 @@ function App() {
           </div>
         )}
         {activeTab === 'report-syncs' && <ReportSyncs />}
+        {activeTab === 'user-management' && <UserManagement />}
       </div>
     </div>
   );

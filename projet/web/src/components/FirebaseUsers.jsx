@@ -68,11 +68,6 @@ function FirebaseUsers() {
         </button>
       </div>
 
-      <div style={styles.info}>
-        <strong>ℹ️ Information :</strong> Ces utilisateurs sont stockés uniquement dans Firebase. 
-        Les paramètres de sécurité sont stockés dans Firebase Firestore.
-      </div>
-
       {message.text && (
         <div style={{
           ...styles.message,
