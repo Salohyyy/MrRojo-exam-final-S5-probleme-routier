@@ -1,5 +1,2 @@
-back/
-doc/
-
-projet/api/firebase-credentials.json
-node_modules
+node_modules/
+firebase.json
