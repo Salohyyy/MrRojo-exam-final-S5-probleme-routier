@@ -180,3 +180,6 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
 END $$;
 */
+ALTER TABLE reports ADD COLUMN firebase_id VARCHAR(100);
+
+ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;

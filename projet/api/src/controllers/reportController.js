@@ -46,7 +46,7 @@ async function createReport(req, res) {
 
 async function getAllReports(req, res) {
 
-  console.log("get all");
+  // console.log("get all");
 
   try {
     const { filter } = req.query;
