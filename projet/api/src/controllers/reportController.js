@@ -184,6 +184,7 @@ async function addPhotosToReport(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
+
 const getReportPhotos = async (req, res) => {
   const { reportId } = req.params;
 
