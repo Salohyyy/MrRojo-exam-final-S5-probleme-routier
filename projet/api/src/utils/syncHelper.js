@@ -39,7 +39,7 @@ async function downloadReportPhotos(reportData, postgresReportId, client) {
     let photosCount = 0;
     
     try {
-        // ✅ Vérifier si le rapport a des photos
+        //  Vérifier si le rapport a des photos
         const photos = reportData.photos;
         
         if (!photos || !Array.isArray(photos) || photos.length === 0) {
@@ -59,7 +59,7 @@ async function downloadReportPhotos(reportData, postgresReportId, client) {
                 // Générer un ID unique pour la photo
                 const firebasePhotoId = `photo_${postgresReportId}_${i}_${Date.now()}`;
                 
-                // ✅ Convertir base64 en buffer BYTEA si nécessaire
+                //  Convertir base64 en buffer BYTEA si nécessaire
                 // La string base64 commence par "data:image/jpeg;base64,"
                 let base64Data = photoData;
                 let mimeType = 'image/jpeg';
@@ -76,7 +76,7 @@ async function downloadReportPhotos(reportData, postgresReportId, client) {
                 // Convertir base64 en buffer pour BYTEA
                 const buffer = Buffer.from(base64Data, 'base64');
                 
-                // ✅ Insérer la photo dans PostgreSQL
+                //  Insérer la photo dans PostgreSQL
                 await client.query(
                     `INSERT INTO report_photos (
                         report_id, 
@@ -120,6 +120,173 @@ async function downloadReportPhotos(reportData, postgresReportId, client) {
         return 0;  // Ne pas bloquer la synchronisation
     }
 }
+
+/**
+ * Synchroniser un rapport traité depuis PostgreSQL vers Firebase (Upload)
+ * Inclut les photos associées
+ * @param {object} row - Ligne du rapport depuis PostgreSQL
+ * @param {object} client - Client PostgreSQL pour la transaction
+ */
+async function syncUpload(row, client) {
+    try { 
+        const firebaseData = {
+            original_firebase_id: row.firebase_id,
+            postgres_report_id: row.id,
+            longitude: Number(row.longitude),
+            latitude: Number(row.latitude),
+            city: row.city,
+            surface: row.surface ? Number(row.surface) : null,
+            budget: row.budget ? Number(row.budget) : null,
+            progress: row.progress ? Number(row.progress) : null,
+            report_status_id: row.report_status_id,
+            problem_type_id: row.problem_type_id,
+            company_id: row.company_id || null,
+            company_name: row.company_name || null,
+            synced_at: admin.firestore.FieldValue.serverTimestamp(),
+            photos_count: row.photos_count || 0
+        };
+
+        //  Ajouter le rapport traité à Firebase
+        const reportRef = await db.collection('reports_traites').add(firebaseData);
+        
+        console.log(`📤 Rapport ${row.id} créé dans Firebase avec ID: ${reportRef.id}`);
+
+        //  Synchroniser les photos associées
+        try {
+            await uploadReportPhotosToFirebase(row.id, client);
+        } catch (photoError) {
+            console.error('Erreur sync photos:', photoError);
+            // Continuer même si les photos échouent
+        }
+
+        //  Marquer le rapport comme envoyé à Firebase
+        await client.query(
+            'UPDATE report_syncs SET sent_to_firebase = true , photos_synced = true WHERE report_id = $1',
+            [row.id]
+        );
+
+        console.log(` Rapport ${row.id} complètement synchronisé vers Firebase`);
+        
+    } catch (error) {
+        console.error('Erreur sync upload:', error);
+        throw error;
+    }
+}
+
+/**
+ * Télécharger les images d'un rapport traité vers Firebase
+ * @param {number} reportId - ID du rapport dans PostgreSQL
+ * @param {object} client - Client PostgreSQL pour la transaction
+ */
+async function uploadReportPhotosToFirebase(reportId, client) {
+    try { 
+        const photosResult = await client.query(
+            `SELECT 
+                id, 
+                photo_base64, 
+                uploaded_at,
+                mime_type,
+                firebase_photo_id
+             FROM report_photos 
+             WHERE report_id = $1 AND sent_to_firebase = false`,
+            [reportId]
+        );
+
+        console.log(`${photosResult.rows.length} photos à synchroniser vers Firebase`);
+
+        for (const photo of photosResult.rows) {
+            try {
+                
+                //  NOUVEAU: Ajouter la photo à Firebase
+                const photoData = {
+                    report_id: reportId,
+                    photo_base64: photo.photo_base64,
+                    mime_type: photo.mime_type || 'image/jpeg',
+                    uploaded_at: admin.firestore.FieldValue.serverTimestamp(),
+                    synced_from_postgres: true,
+                    original_postgres_id: photo.id
+                };
+
+                // Ajouter à la collection reports_traites_photos
+                const photoRef = await db
+                    .collection('reports_traites_photos')
+                    .add(photoData);
+
+                // c Mettre à jour le firebase_photo_id et marquer comme synchronisé
+                await client.query(
+                    'UPDATE report_photos SET firebase_photo_id = $1, sent_to_firebase = true WHERE id = $2',
+                    [photoRef.id, photo.id]
+                );
+
+                console.log(` Photo ${photo.id} synchronisée vers Firebase (ID: ${photoRef.id})`);
+                
+            } catch (photoError) {
+                console.error(`❌ Erreur synchronisation photo ${photo.id}:`, photoError);
+                // Continuer avec les autres photos
+            }
+        }
+        
+        // Marquer le rapport comme ayant ses photos synchronisées
+        await client.query(
+            'UPDATE reports SET photos_synced = true WHERE id = $1',
+            [reportId]
+        );
+        
+    } catch (error) {
+        console.error('Erreur upload photos vers Firebase:', error);
+        throw error;
+    }
+}
+
+/**
+ * Synchroniser un rapport traité depuis PostgreSQL vers Firebase (Upload)
+ * Inclut les photos associées
+ * @param {object} row - Ligne du rapport depuis PostgreSQL
+ * @param {object} client - Client PostgreSQL pour la transaction
+ */
+async function syncUpload(row, client) {
+    try {
+        //  Données du rapport pour Firebase
+        const firebaseData = {
+            original_firebase_id: row.firebase_id,
+            postgres_report_id: row.id,
+            longitude: Number(row.longitude),
+            latitude: Number(row.latitude),
+            city: row.city,
+            surface: row.surface ? Number(row.surface) : null,
+            budget: row.budget ? Number(row.budget) : null,
+            progress: row.progress ? Number(row.progress) : null,
+            report_status_id: row.report_status_id,
+            problem_type_id: row.problem_type_id,
+            company_id: row.company_id || null,
+            company_name: row.company_name || null,
+            synced_at: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        //  Ajouter le rapport traité à Firebase
+        const reportRef = await db.collection('reports_traites').add(firebaseData);
+
+        //  NOUVEAU: Synchroniser les photos associées
+        try {
+            await uploadReportPhotosToFirebase(row.id, client);
+        } catch (photoError) {
+            console.error('Erreur sync photos:', photoError);
+            // Continuer même si les photos échouent
+        }
+
+        //  Marquer le rapport comme envoyé à Firebase
+        await client.query(
+            'UPDATE report_syncs SET sent_to_firebase = true WHERE report_id = $1',
+            [row.id]
+        );
+
+        console.log(` Rapport ${row.id} synchronisé vers Firebase avec photos`);
+    } catch (error) {
+        console.error('Erreur sync upload:', error);
+        throw error;
+    }
+}
+
 /**
  * Synchroniser les rapports depuis Firebase vers PostgreSQL (Download)
  * Inclut les photos associées à chaque rapport
@@ -137,7 +304,7 @@ async function syncDownload(client) {
     let totalPhotosCount = 0;
 
     try {
-        // ✅ Récupérer tous les rapports depuis Firebase
+        //  Récupérer tous les rapports depuis Firebase
         const snapshot = await db.collection('reports').get();
 
         console.log(`Synchronisation download: ${snapshot.docs.length} rapports à traiter`);
@@ -147,7 +314,7 @@ async function syncDownload(client) {
             const firebaseId = doc.id;
             
             try {
-                // ✅ 1. Créer ou récupérer l'utilisateur dans PostgreSQL
+                //  1. Créer ou récupérer l'utilisateur dans PostgreSQL
                 // Dans votre Firebase, user_id semble être un UID Firebase, pas un email
                 // On va créer un utilisateur avec cet UID comme username
                 const firebaseUserId = data.user_id || `firebase_user_${firebaseId}`;
@@ -168,7 +335,7 @@ async function syncDownload(client) {
                 
                 const postgresUserId = userResult.rows[0].id;
 
-                // ✅ 2. UPSERT du rapport principal
+                //  2. UPSERT du rapport principal
                 const reportResult = await client.query(
                     `INSERT INTO reports (
                         reported_at, longitude, latitude, city, is_synced,
@@ -198,7 +365,7 @@ async function syncDownload(client) {
 
                 const postgresReportId = reportResult.rows[0].id;
 
-                // ✅ 3. Télécharger les photos associées (depuis le champ "photos")
+                //  3. Télécharger les photos associées (depuis le champ "photos")
                 const photosCount = await downloadReportPhotos(
                     data,
                     postgresReportId,
@@ -207,7 +374,7 @@ async function syncDownload(client) {
 
                 totalPhotosCount += photosCount;
 
-                // ✅ 4. Mettre à jour le champ photos_synced dans reports
+                //  4. Mettre à jour le champ photos_synced dans reports
                 if (photosCount > 0) {
                     await client.query(
                         `UPDATE reports SET photos_synced = true WHERE id = $1`,
@@ -215,7 +382,7 @@ async function syncDownload(client) {
                     );
                 }
 
-                // ✅ 5. Mettre à jour Firebase si nécessaire
+                //  5. Mettre à jour Firebase si nécessaire
                 try {
                     await doc.ref.update({
                         is_synced: true,
@@ -228,7 +395,7 @@ async function syncDownload(client) {
                 }
 
                 syncCount++;
-                console.log(`✅ Rapport ${firebaseId} synchronisé avec ${photosCount} photo(s)`);
+                console.log(` Rapport ${firebaseId} synchronisé avec ${photosCount} photo(s)`);
 
             } catch (reportError) {
                 console.error(`❌ Erreur synchronisation rapport ${firebaseId}:`, reportError);
@@ -236,7 +403,7 @@ async function syncDownload(client) {
             }
         }
 
-        console.log(`✅ Synchronisation download complétée: ${syncCount} rapports, ${totalPhotosCount} photos`);
+        console.log(` Synchronisation download complétée: ${syncCount} rapports, ${totalPhotosCount} photos`);
         return {
             count: syncCount,
             photosCount: totalPhotosCount
@@ -248,107 +415,10 @@ async function syncDownload(client) {
     }
 }
 
-
-/**
- * Télécharger les images d'un rapport traité vers Firebase
- * @param {number} reportId - ID du rapport dans PostgreSQL
- * @param {object} client - Client PostgreSQL pour la transaction
- */
-async function uploadReportPhotosToFirebase(reportId, client) {
-    try {
-        // ✅ NOUVEAU: Récupérer les photos du rapport depuis PostgreSQL
-        const photosResult = await client.query(
-            `SELECT id, photo_url, uploaded_at 
-             FROM report_photos 
-             WHERE report_id = $1 AND firebase_photo_id IS NULL`,
-            [reportId]
-        );
-
-        for (const photo of photosResult.rows) {
-            try {
-                // ✅ NOUVEAU: Ajouter la photo à Firebase
-                const photoData = {
-                    report_id: reportId,
-                    photo_url: photo.photo_url,
-                    uploaded_at: admin.firestore.FieldValue.serverTimestamp(),
-                    synced_from_postgres: true
-                };
-
-                const photoRef = await db
-                    .collection('reports_traites_photos')
-                    .add(photoData);
-
-                // ✅ NOUVEAU: Mettre à jour le firebase_photo_id dans PostgreSQL
-                await client.query(
-                    'UPDATE report_photos SET firebase_photo_id = $1 WHERE id = $2',
-                    [photoRef.id, photo.id]
-                );
-
-                console.log(`✅ Photo ${photo.id} synchronisée vers Firebase`);
-            } catch (photoError) {
-                console.error(`❌ Erreur synchronisation photo ${photo.id}:`, photoError);
-                // Continuer avec les autres photos
-            }
-        }
-    } catch (error) {
-        console.error('Erreur upload photos vers Firebase:', error);
-        throw error;
-    }
-}
-
-/**
- * Synchroniser un rapport traité depuis PostgreSQL vers Firebase (Upload)
- * Inclut les photos associées
- * @param {object} row - Ligne du rapport depuis PostgreSQL
- * @param {object} client - Client PostgreSQL pour la transaction
- */
-async function syncUpload(row, client) {
-    try {
-        // ✅ Données du rapport pour Firebase
-        const firebaseData = {
-            original_firebase_id: row.firebase_id,
-            postgres_report_id: row.id,
-            longitude: Number(row.longitude),
-            latitude: Number(row.latitude),
-            city: row.city,
-            surface: row.surface ? Number(row.surface) : null,
-            budget: row.budget ? Number(row.budget) : null,
-            progress: row.progress ? Number(row.progress) : null,
-            report_status_id: row.report_status_id,
-            problem_type_id: row.problem_type_id,
-            company_id: row.company_id || null,
-            company_name: row.company_name || null,
-            synced_at: admin.firestore.FieldValue.serverTimestamp()
-        };
-
-        // ✅ Ajouter le rapport traité à Firebase
-        const reportRef = await db.collection('reports_traites').add(firebaseData);
-
-        // ✅ NOUVEAU: Synchroniser les photos associées
-        try {
-            await uploadReportPhotosToFirebase(row.id, client);
-        } catch (photoError) {
-            console.error('Erreur sync photos:', photoError);
-            // Continuer même si les photos échouent
-        }
-
-        // ✅ Marquer le rapport comme envoyé à Firebase
-        await client.query(
-            'UPDATE report_syncs SET sent_to_firebase = true, synced_at = CURRENT_TIMESTAMP WHERE report_id = $1',
-            [row.id]
-        );
-
-        console.log(`✅ Rapport ${row.id} synchronisé vers Firebase avec photos`);
-    } catch (error) {
-        console.error('Erreur sync upload:', error);
-        throw error;
-    }
-}
-
 module.exports = {
-    syncUserToPostgres,
-    syncDownload,
+    syncUserToPostgres, 
     syncUpload,
+    syncDownload,
     downloadReportPhotos,
     uploadReportPhotosToFirebase
 };

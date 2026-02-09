@@ -24,7 +24,7 @@ try {
         console.log('⚠️ Firestore connecté, mais AUCUNE collection trouvée.');
       } else {
         const names = collections.map(col => col.id).join(', ');
-        console.log(`✅ Collections Firestore trouvées : [ ${names} ]`);
+        console.log(` Collections Firestore trouvées : [ ${names} ]`);
       }
     } catch (err) {
       console.error('❌ Erreur lors du listing des collections :', err.message);

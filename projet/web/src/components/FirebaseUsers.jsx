@@ -127,7 +127,7 @@ function FirebaseUsers() {
                     {user.isBlocked ? (
                       <span style={styles.blockedBadge}>🚫 Bloqué</span>
                     ) : (
-                      <span style={styles.activeBadge}>✅ Actif</span>
+                      <span style={styles.activeBadge}> Actif</span>
                     )}
                   </td>
                   <td style={styles.td}>

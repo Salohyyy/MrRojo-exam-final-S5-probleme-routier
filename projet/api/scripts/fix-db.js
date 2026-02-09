@@ -12,11 +12,11 @@ async function migrate() {
   try {
     console.log('Adding sent_to_firebase column to report_syncs...');
     await pool.query('ALTER TABLE report_syncs ADD COLUMN IF NOT EXISTS sent_to_firebase BOOLEAN DEFAULT FALSE;');
-    console.log('✅ Success: report_syncs updated.');
+    console.log(' Success: report_syncs updated.');
 
     console.log('Adding firebase_id column to reports...');
     await pool.query('ALTER TABLE reports ADD COLUMN IF NOT EXISTS firebase_id VARCHAR(255);');
-    console.log('✅ Success: reports updated.');
+    console.log(' Success: reports updated.');
     
   } catch (error) {
     console.error('❌ Error during migration:', error);

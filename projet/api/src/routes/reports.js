@@ -13,7 +13,8 @@ const {
   updateReportSyncStatus,
   addPhotosToReport,
   getReportPhotos,
-  deleteReportPhoto
+  deleteReportPhoto,
+  getSyncStatus  // Ajoutez cette ligne
 } = require('../controllers/reportController');
 
 // Routes mobiles (utilisateurs Firebase uniquement)
@@ -28,13 +29,11 @@ router.put('/local/:id', verifyAnyToken, updateReport);
 router.post('/local/:id/upload', verifyAnyToken, uploadReport);
 router.post('/sync/upload', verifyAnyToken, uploadAllReports);
 router.post('/sync/download', verifyAnyToken, syncDownload);
+router.get('/sync/status', verifyAnyToken, getSyncStatus);  //  Ajoutez cette ligne
 
-router.put('/local/:id', verifyAnyToken, updateReport);
-router.post('/local/:id/upload', verifyAnyToken, uploadReport);
+// Routes pour les photos
 router.get('/:reportId/photos', verifyAnyToken, getReportPhotos);
+router.post('/:reportId/photos', verifyAnyToken, addPhotosToReport);  //  Ajoutez cette ligne
 router.delete('/:reportId/photos/:photoId', verifyAnyToken, deleteReportPhoto);
-// router.get('/sync/status', verifyAnyToken, getSyncStatus); 
-// router.post('/:reportId/photos', verifyAnyToken, addReportPhoto);
-
 
 module.exports = router;

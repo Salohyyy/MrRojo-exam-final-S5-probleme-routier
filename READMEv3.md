@@ -5,16 +5,16 @@
 ### Deux systèmes d'authentification séparés :
 
 1. **Employés (Admin)** 
-   - ✅ Authentification 100% locale (PostgreSQL)
-   - ✅ Pas besoin de Firebase pour se connecter
-   - ✅ Fonctionne hors ligne
-   - ✅ Utilisent JWT pour les sessions
+   -  Authentification 100% locale (PostgreSQL)
+   -  Pas besoin de Firebase pour se connecter
+   -  Fonctionne hors ligne
+   -  Utilisent JWT pour les sessions
 
 2. **Utilisateurs normaux**
-   - ✅ Authentification 100% Firebase
-   - ✅ Pas de base locale
-   - ✅ Paramètres stockés dans Firebase Firestore
-   - ✅ Gérés par les employés via l'interface admin
+   -  Authentification 100% Firebase
+   -  Pas de base locale
+   -  Paramètres stockés dans Firebase Firestore
+   -  Gérés par les employés via l'interface admin
 
 ## 📋 Prérequis
 
@@ -132,9 +132,9 @@ node create-employee.js admin admin@example.com Password123!
 
 # Sortie attendue :
 # 🔄 Création de l'employé admin...
-# ✅ Rôle admin trouvé
-# ✅ Mot de passe hashé
-# ✅ Employé créé dans la base locale
+#  Rôle admin trouvé
+#  Mot de passe hashé
+#  Employé créé dans la base locale
 # 
 # 🎉 Employé admin créé avec succès !
 # 
@@ -174,24 +174,24 @@ node create-employee.js admin admin@example.com Password123!
 
 ### PostgreSQL (Local)
 ```
-✅ employees (username, email, password_hash, role_id)
-✅ roles
-✅ users (pour données métier, PAS pour auth)
-✅ reports, companies, etc. (votre app métier)
+ employees (username, email, password_hash, role_id)
+ roles
+ users (pour données métier, PAS pour auth)
+ reports, companies, etc. (votre app métier)
 ```
 
 ### Firebase Firestore
 ```
-✅ auth_settings/global (session_duration_minutes, default_max_login_attempts)
-✅ user_settings/{uid} (max_login_attempts personnalisé)
-✅ login_attempts/{uid} (failed_attempts, is_blocked, blocked_at)
+ auth_settings/global (session_duration_minutes, default_max_login_attempts)
+ user_settings/{uid} (max_login_attempts personnalisé)
+ login_attempts/{uid} (failed_attempts, is_blocked, blocked_at)
 ```
 
 ### Firebase Auth
 ```
-✅ Liste des utilisateurs
-✅ Emails, passwords
-✅ Metadata (creation, last signin)
+ Liste des utilisateurs
+ Emails, passwords
+ Metadata (creation, last signin)
 ```
 
 ## 🔧 API Endpoints
@@ -317,16 +317,16 @@ docker-compose up --build
 ## 🔒 Sécurité
 
 ### Employés
-- ✅ Mot de passe hashé avec bcrypt
-- ✅ JWT avec expiration (24h)
-- ✅ Vérification du rôle sur chaque requête
-- ✅ Pas de Firebase, 100% local
+-  Mot de passe hashé avec bcrypt
+-  JWT avec expiration (24h)
+-  Vérification du rôle sur chaque requête
+-  Pas de Firebase, 100% local
 
 ### Utilisateurs
-- ✅ Firebase gère la sécurité
-- ✅ Tokens vérifiés à chaque requête
-- ✅ Blocage automatique
-- ✅ Paramètres dans Firestore (serveur uniquement)
+-  Firebase gère la sécurité
+-  Tokens vérifiés à chaque requête
+-  Blocage automatique
+-  Paramètres dans Firestore (serveur uniquement)
 
 ## ⚠️ Important
 
@@ -348,11 +348,11 @@ docker-compose up --build
 
 ## 🎉 Avantages de cette architecture
 
-✅ **Employés** : 100% hors ligne, rapide, sécurisé
-✅ **Utilisateurs** : Firebase gère tout (scaling, sécurité, récup password)
-✅ **Paramètres** : Centralisés dans Firestore, faciles à modifier
-✅ **Séparation** : Admin et users complètement indépendants
-✅ **Scalabilité** : Firebase scale automatiquement pour les users
+ **Employés** : 100% hors ligne, rapide, sécurisé
+ **Utilisateurs** : Firebase gère tout (scaling, sécurité, récup password)
+ **Paramètres** : Centralisés dans Firestore, faciles à modifier
+ **Séparation** : Admin et users complètement indépendants
+ **Scalabilité** : Firebase scale automatiquement pour les users
 
 ## 🐛 Dépannage
 

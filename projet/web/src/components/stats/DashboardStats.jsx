@@ -74,7 +74,7 @@ const DashboardStats = () => {
       <StatCard 
         title="Terminés" 
         value={stats.completedWorks} 
-        icon="✅" 
+        icon="" 
         color="#9b59b6"
       />
     </div>

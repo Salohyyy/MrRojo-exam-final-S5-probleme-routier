@@ -136,10 +136,18 @@ const ManagerDashboard = () => {
         }
     };
 
+    // Dans handleShowPhotos, corrigez l'appel API :
     const handleShowPhotos = async (report) => {
         try {
             const response = await reportsAPI.getReportPhotos(report.id);
-            setReportPhotos(response.data.photos);
+
+            // Vérifiez la structure de la réponse
+            console.log('Photos response:', response.data);
+
+            // Utilisez la structure correcte
+            const photos = response.data.data?.photos || response.data.photos || [];
+
+            setReportPhotos(photos);
             setSelectedReport(report);
             setSelectedPhotoIndex(0);
             setShowPhotosModal(true);
@@ -148,6 +156,8 @@ const ManagerDashboard = () => {
             showMessage('✗ Erreur lors du chargement des photos', 'error');
         }
     };
+
+
 
     const handleDeletePhoto = async (photoId) => {
         try {
@@ -195,8 +205,8 @@ const ManagerDashboard = () => {
                     {syncMessage && (
                         <div
                             className={`notification-message ${syncMessage.type === 'success'
-                                    ? 'notification-success'
-                                    : 'notification-error'
+                                ? 'notification-success'
+                                : 'notification-error'
                                 }`}
                         >
                             {syncMessage.text}
@@ -467,10 +477,17 @@ const ManagerDashboard = () => {
                         <div className="photos-viewer">
                             <div className="main-photo">
                                 <img
-                                    src={reportPhotos[selectedPhotoIndex].photo_base64}
+                                    src={reportPhotos[selectedPhotoIndex]?.full_base64 ||
+                                        reportPhotos[selectedPhotoIndex]?.photo_base64}
                                     alt={`Photo ${selectedPhotoIndex + 1}`}
                                     className="photo-image"
+                                    onError={(e) => {
+                                        console.error('Erreur chargement image:', e);
+                                        e.target.onerror = null;
+                                        e.target.src = '/placeholder-image.jpg'; // Image de secours
+                                    }}
                                 />
+                                
                                 <div className="photo-nav">
                                     {selectedPhotoIndex > 0 && (
                                         <button

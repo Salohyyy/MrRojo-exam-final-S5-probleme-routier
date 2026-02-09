@@ -105,7 +105,7 @@ function ReportSyncs({ readOnly = false }) {
         })
       );
       
-      showNotification('✅ Mise à jour réussie', 'success');
+      showNotification(' Mise à jour réussie', 'success');
     } catch (err) {
       console.error('❌ Erreur:', err);
       showNotification('❌ Erreur: ' + err.message, 'error');
@@ -278,7 +278,7 @@ function ReportSyncs({ readOnly = false }) {
           </p>
         </div>
         <div style={styles.statCard}>
-          <div style={styles.statIcon}>✅</div>
+          <div style={styles.statIcon}></div>
           <h3>Terminés</h3>
           <p style={styles.statNumber}>
             {filteredReportSyncs.filter(rs => rs.status_name === 'Terminé').length}
