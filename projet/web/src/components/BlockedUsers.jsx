@@ -60,10 +60,6 @@ function BlockedUsers() {
         </button>
       </div>
 
-      <div style={styles.info}>
-        <strong>ℹ️ Information :</strong> Les blocages sont stockés dans Firebase Firestore.
-        Un utilisateur est bloqué après avoir dépassé le nombre de tentatives autorisées.
-      </div>
 
       {message.text && (
         <div style={{

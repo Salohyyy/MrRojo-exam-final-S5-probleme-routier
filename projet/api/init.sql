@@ -42,8 +42,10 @@ CREATE TABLE IF NOT EXISTS employees (
 -- Table users (vide ou pour données métier uniquement, PAS pour auth)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
+    firebase_uid VARCHAR(100) UNIQUE,
     username VARCHAR(50),
     email VARCHAR(50) UNIQUE,
+    password VARCHAR(255), 
     birth_date DATE,
     user_status_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
