@@ -118,4 +118,15 @@ export const utilsAPI = {
   getProblemTypes: () => api.get('/api/utils/problem-types'),
 };
 
+// ========================
+// USERS API (local + sync Firebase)
+// ========================
+export const usersAPI = {
+  getAllLocalUsers: () => api.get('/api/users'),
+  getUnsyncedUsers: () => api.get('/api/users/unsynced'),
+  createLocalUser: (data) => api.post('/api/users', data),
+  syncUserToFirebase: (id) => api.post(`/api/users/${id}/sync`),
+  syncMultipleUsers: (userIds) => api.post('/api/users/sync-multiple', { userIds }),
+};
+
 export default api;
