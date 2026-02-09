@@ -4,7 +4,7 @@ import { Report, ReportData } from '../types/report.types';
 
 export class FirestoreService {
   async getReportTraites(): Promise<Report[]> {
-    const q = query(collection(db, 'report_traites'), orderBy('progress', 'desc'));
+    const q = query(collection(db, 'reports_traites'), orderBy('progress', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map(d => {
       const data = d.data() as any;
@@ -21,7 +21,7 @@ export class FirestoreService {
   }
 
   async getReportTraitesRaw() {
-    const snap = await getDocs(collection(db, 'report_traites'));
+    const snap = await getDocs(collection(db, 'reports_traites'));
     return snap.docs;
   }
 

@@ -25,10 +25,10 @@ async function syncReportToFirebase(report) {
   }
 }
 
-// Synchroniser un report_sync vers Firebase (collection "report_traites")
+// Synchroniser un report_sync vers Firebase (collection "reports_traites")
 async function syncReportSyncToFirebase(reportSync, reportData) {
   try {
-    const syncRef = db.collection('report_traites').doc(reportSync.id.toString());
+    const syncRef = db.collection('reports_traites').doc(reportSync.id.toString());
     const payload = {
       budget: safeNumber(reportSync.budget),
       city: safeString(reportData?.city),
@@ -46,7 +46,7 @@ async function syncReportSyncToFirebase(reportSync, reportData) {
     };
     await syncRef.set(payload, { merge: true });
     
-    console.log(`✅ ReportSync ${reportSync.id} synchronisé vers Firebase (report_traites)`);
+    console.log(`✅ ReportSync ${reportSync.id} synchronisé vers Firebase (reports_traites)`);
     return true;
   } catch (error) {
     console.error(`❌ Erreur sync reportSync ${reportSync.id}:`, error);
