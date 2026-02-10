@@ -52,6 +52,7 @@ export class MapService {
         const lat = Number(t.latitude);
         const lng = Number(t.longitude);
         const p = Number(t.progress);
+        const niveau = t.niveau || '';
         const typeKey = String(t.problem_type_id || '');
         const st = PROBLEM_STYLES[typeKey] || DEFAULT_STYLE;
         const photos: string[] = t.photos || [];
@@ -86,6 +87,7 @@ export class MapService {
                 <div style="font-size: 24px; text-align: center; margin-bottom: 8px;">${icon}</div>
                 <div style="font-weight: 600; color: #222222; margin-bottom: 4px;">${t.city || ''}</div>
                 <div style="color: #767676; font-size: 13px; margin-bottom: 6px;">${t.company_name || ''}</div>
+                ${niveau ? `<div style="color: #484848; font-size: 12px; margin-bottom: 6px;"><strong>Niveau:</strong> ${niveau}</div>` : ''}
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom:4px;">
                   <span style="background: ${st.color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${st.label}</span>
                   <span style="color: #00A699; font-weight: 600;">${p}%</span>
