@@ -1,0 +1,43 @@
+
+2026-02-10 12:07:16.079 | Error: Cannot find module 'swagger-jsdoc'
+2026-02-10 12:07:16.079 | Require stack:
+2026-02-10 12:07:16.079 | - /app/src/config/swagger.js
+2026-02-10 12:07:16.079 | - /app/src/index.js
+2026-02-10 12:07:16.079 |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2026-02-10 12:07:16.079 |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2026-02-10 12:07:16.079 |     at Module.require (node:internal/modules/cjs/loader:1289:19)
+2026-02-10 12:07:16.079 |     at require (node:internal/modules/helpers:182:18)
+2026-02-10 12:07:16.079 |     at Object.<anonymous> (/app/src/config/swagger.js:1:22)
+2026-02-10 12:07:16.079 |     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-02-10 12:07:16.079 |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-02-10 12:07:16.079 |     at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-02-10 12:07:16.079 |     at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-02-10 12:07:16.079 |     at Module.require (node:internal/modules/cjs/loader:1289:19) {
+2026-02-10 12:07:16.079 |   code: 'MODULE_NOT_FOUND',
+2026-02-10 12:07:16.079 |   requireStack: [ '/app/src/config/swagger.js', '/app/src/index.js' ]
+2026-02-10 12:07:16.079 | }
+2026-02-10 12:07:16.079 | 
+2026-02-10 12:07:16.079 | Node.js v20.20.0
+2026-02-10 12:07:17.884 | node:internal/modules/cjs/loader:1210
+2026-02-10 12:07:17.884 |   throw err;
+2026-02-10 12:07:17.884 |   ^
+2026-02-10 12:07:17.884 | 
+2026-02-10 12:07:17.884 | Error: Cannot find module 'swagger-jsdoc'
+2026-02-10 12:07:17.884 | Require stack:
+2026-02-10 12:07:17.884 | - /app/src/config/swagger.js
+2026-02-10 12:07:17.884 | - /app/src/index.js
+2026-02-10 12:07:17.884 |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2026-02-10 12:07:17.884 |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2026-02-10 12:07:17.884 |     at Module.require (node:internal/modules/cjs/loader:1289:19)
+2026-02-10 12:07:17.884 |     at require (node:internal/modules/helpers:182:18)
+2026-02-10 12:07:17.884 |     at Object.<anonymous> (/app/src/config/swagger.js:1:22)
+2026-02-10 12:07:17.884 |     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-02-10 12:07:17.884 |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-02-10 12:07:17.884 |     at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-02-10 12:07:17.884 |     at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-02-10 12:07:17.884 |     at Module.require (node:internal/modules/cjs/loader:1289:19) {
+2026-02-10 12:07:17.884 |   code: 'MODULE_NOT_FOUND',
+2026-02-10 12:07:17.884 |   requireStack: [ '/app/src/config/swagger.js', '/app/src/index.js' ]
+2026-02-10 12:07:17.884 | }
+2026-02-10 12:07:17.884 | 
+2026-02-10 12:07:17.884 | Node.js v20.20.0

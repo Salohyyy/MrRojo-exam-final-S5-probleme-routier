@@ -9,12 +9,17 @@ export function useMap(containerId: string) {
     await mapService.loadMarkers();
   }
 
+  async function reloadMarkers() {
+    await mapService.loadMarkers();
+  }
+
   function onMapClick(callback: (lat: number, lng: number) => void) {
     mapService.onMapClick(callback);
   }
 
   return {
     initializeMap,
+    reloadMarkers,
     onMapClick
   };
 }

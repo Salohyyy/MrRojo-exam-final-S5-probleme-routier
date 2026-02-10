@@ -42,11 +42,11 @@ CREATE TABLE IF NOT EXISTS employees (
 -- Table users (vide ou pour données métier uniquement, PAS pour auth)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    firebase_uid VARCHAR(100) UNIQUE,
     username VARCHAR(50),
     email VARCHAR(50) UNIQUE,
-    password VARCHAR(255), 
     birth_date DATE,
+    firebase_uid VARCHAR(100) UNIQUE, -- UID Firebase pour liaison
+    password VARCHAR(255), -- Mot de passe en clair (si besoin, sinon NULL)
     user_status_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_status_id) REFERENCES user_statuses(id)
@@ -62,7 +62,6 @@ CREATE TABLE IF NOT EXISTS reports (
     report_status_id BIGINT NOT NULL,
     problem_type_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    firebase_id VARCHAR(100) UNIQUE,
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (problem_type_id) REFERENCES problem_types(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -76,7 +75,6 @@ CREATE TABLE IF NOT EXISTS report_syncs (
     report_status_id BIGINT NOT NULL,
     company_id BIGINT NOT NULL,
     report_id BIGINT NOT NULL,
-    sent_to_firebase BOOLEAN DEFAULT false,
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (report_id) REFERENCES reports(id)
@@ -137,33 +135,6 @@ INSERT INTO user_statuses (name) VALUES
     ('blocked') 
 ON CONFLICT DO NOTHING;
 
--- Insérer les statuts de rapport
-INSERT INTO report_statuses (id, name, level) VALUES 
-    (1, 'Nouveau', 1), 
-    (2, 'En cours', 2), 
-    (3, 'Terminé', 3), 
-    (4, 'Rejeté', 0),
-    (5, 'Résolu', 4),
-    (6, 'Archivé', 5)
-ON CONFLICT (id) DO NOTHING;
-
--- Insérer les types de problème
-INSERT INTO problem_types (id, name) VALUES 
-    (1, 'Nid de poule'), 
-    (2, 'Chaussée dégradée'), 
-    (3, 'Lampadaires'),
-    (4, 'Fissure'), 
-    (5, 'Glissement'), 
-    (6, 'Inondation')
-ON CONFLICT (id) DO NOTHING;
-
--- Insérer les entreprises
-INSERT INTO companies (id, name, address) VALUES 
-    (1, 'Colas', 'Analakely'), 
-    (2, 'STB', 'Ankadilana'), 
-    (3, 'Vinci', 'Isoraka')
-ON CONFLICT (id) DO NOTHING;
-
 -- ============================================
 -- CRÉER L'EMPLOYÉ ADMIN PAR DÉFAUT
 -- ============================================
@@ -211,7 +182,6 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
 END $$;
 */
-
 ALTER TABLE reports ADD COLUMN firebase_id VARCHAR(100);
 
 ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
@@ -219,7 +189,7 @@ ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
 -- Insertion des statuts de rapport
 INSERT INTO report_statuses (id, name, level) VALUES (1, 'Nouveau', 1), (2, 'En cours', 2), (3, 'Terminé', 3), (4, 'Rejeté', 0);
 
-INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation') , (5, 'Autre');
+INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation') , (5, 'hazo nianjera'), (6, 'accident');
 
 INSERT INTO companies (id, name, address) VALUES (1, 'Colas', 'Analakely'), (2, 'STB', 'Ankadilana'), (3, 'Vinci', 'Isoraka');
 
@@ -249,3 +219,33 @@ ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;
  
 ALTER TABLE report_syncs 
 ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;
+
+-- Ajoutez une colonne pour le type de réparation dans report_syncs
+ALTER TABLE report_syncs ADD COLUMN IF NOT EXISTS repair_type_level INTEGER;
+
+-- Créez une table pour les types de réparation si vous voulez les gérer proprement
+CREATE TABLE IF NOT EXISTS repair_types (
+    id BIGSERIAL PRIMARY KEY,
+    level INTEGER UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    severity VARCHAR(50)
+);
+
+-- Insérez les niveaux de réparation
+INSERT INTO repair_types (level, name, description, severity) VALUES
+(1, 'Niveau 1 - Mineur', 'Réparation superficielle, entretien léger', 'faible'),
+(2, 'Niveau 2', 'Petits travaux de maintenance', 'faible'),
+(3, 'Niveau 3', 'Réparations modérées', 'moyen'),
+(4, 'Niveau 4', 'Travaux de consolidation', 'moyen'),
+(5, 'Niveau 5', 'Réparations importantes', 'moyen'),
+(6, 'Niveau 6', 'Travaux structuraux légers', 'élevé'),
+(7, 'Niveau 7', 'Réhabilitation partielle', 'élevé'),
+(8, 'Niveau 8', 'Réhabilitation complète', 'élevé'),
+(9, 'Niveau 9', 'Reconstruction partielle', 'critique'),
+(10, 'Niveau 10 - Urgent', 'Reconstruction totale, danger imminent', 'critique')
+ON CONFLICT (level) DO NOTHING;
+
+-- Ajoutez une clé étrangère si vous utilisez la table repair_types
+ALTER TABLE report_syncs 
+ADD CONSTRAINT fk_repair_type FOREIGN KEY (repair_type_level) REFERENCES repair_types(level);

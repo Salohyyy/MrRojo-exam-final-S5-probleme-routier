@@ -335,7 +335,7 @@ async function updateReport(req, res) {
 
   try {
     const { id } = req.params;
-    const { surface, budget, companyId, reportStatusId, progress } = req.body;
+    const { surface, budget, companyId, reportStatusId, progress, repairTypeLevel } = req.body;
 
     await client.query('BEGIN');
 
@@ -348,16 +348,16 @@ async function updateReport(req, res) {
       await client.query(
         `UPDATE report_syncs 
          SET surface = $1, budget = $2, progress = $3, 
-             report_status_id = $4, company_id = $5, sent_to_firebase = false
-         WHERE report_id = $6`,
-        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, id]
+             report_status_id = $4, company_id = $5, repair_type_level = $6, sent_to_firebase = false
+         WHERE report_id = $7`,
+        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, repairTypeLevel || null, id]
       );
     } else {
       await client.query(
         `INSERT INTO report_syncs 
-         (surface, budget, progress, report_status_id, company_id, report_id, sent_to_firebase)
-         VALUES ($1, $2, $3, $4, $5, $6, false)`,
-        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, id]
+         (surface, budget, progress, report_status_id, company_id, repair_type_level, report_id, sent_to_firebase)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, false)`,
+        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, repairTypeLevel || null, id]
       );
     }
 
@@ -382,6 +382,7 @@ async function updateReport(req, res) {
     client.release();
   }
 }
+
 async function uploadReport(req, res) {
   const client = await pool.connect();
 
@@ -428,6 +429,10 @@ async function uploadReport(req, res) {
   }
 }
 
+/**
+ * Upload ALL reports vers Firebase (version batch)
+ * Maintenant syncUpload gère automatiquement création ou mise à jour
+ */
 async function uploadAllReports(req, res) {
   const client = await pool.connect();
   let uploadCount = 0;
@@ -436,39 +441,108 @@ async function uploadAllReports(req, res) {
   try {
     await client.query('BEGIN');
 
-    const result = await pool.query(
+    // Récupérer tous les report_syncs non synchronisés
+    const result = await client.query(
       `SELECT 
         r.id, r.firebase_id, r.longitude, r.latitude, r.city,
         r.report_status_id, r.problem_type_id,
-        rs.surface, rs.budget, rs.progress, rs.company_id,
-        c.name as company_name
-      FROM reports r
-      INNER JOIN report_syncs rs ON r.id = rs.report_id
+        rs.id as sync_id, rs.surface, rs.budget, rs.progress, rs.company_id,
+        c.name as company_name,
+        pt.name as problem_type_name,
+        rst.name as status_name
+      FROM report_syncs rs
+      INNER JOIN reports r ON rs.report_id = r.id
       LEFT JOIN companies c ON rs.company_id = c.id
-      WHERE rs.sent_to_firebase = false OR rs.sent_to_firebase IS NULL`
+      LEFT JOIN problem_types pt ON r.problem_type_id = pt.id
+      LEFT JOIN report_statuses rst ON rs.report_status_id = rst.id
+      WHERE rs.sent_to_firebase = false`
     );
 
+    console.log(`📦 ${result.rows.length} rapports à synchroniser vers Firebase`);
+
     for (const row of result.rows) {
-      const photos = await reportPhotosModel.getUnsyncedPhotos(row.id);
-      totalPhotos += photos.length;
-      await syncUpload(row, client, photos);
-      uploadCount++;
+      try {
+        // Compter les photos
+        const photosResult = await client.query(
+          'SELECT COUNT(*) as count FROM report_photos WHERE report_id = $1',
+          [row.id]
+        );
+        totalPhotos += parseInt(photosResult.rows[0].count) || 0;
+        
+        // Synchroniser (syncUpload gère automatiquement création ou mise à jour)
+        await syncUpload(row, client);
+        uploadCount++;
+        
+      } catch (rowError) {
+        console.error(`❌ Erreur sur le rapport ${row.id}:`, rowError);
+        // Continuer avec les autres rapports
+      }
     }
 
     await client.query('COMMIT');
 
     res.json({
-      message: `${uploadCount} signalements traités envoyés vers Firebase`,
-      count: uploadCount,
-      photosCount: totalPhotos
+      success: true,
+      message: 'Synchronisation batch terminée',
+      stats: {
+        uploaded: uploadCount,
+        total_processed: uploadCount,
+        photos_synced: totalPhotos
+      }
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erreur uploadAllReports:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   } finally {
     client.release();
   }
+}
+
+/**
+ * Récupérer les photos d'un rapport pour Firebase
+ * @param {number} reportId - ID du rapport dans PostgreSQL
+ * @param {object} client - Client PostgreSQL pour la transaction
+ * @returns {Promise<Array>} Tableau de photos au format Firebase
+ */
+async function getReportPhotosForFirebase(reportId, client) {
+    try {
+        const photosResult = await client.query(
+            `SELECT 
+                id, 
+                photo_base64,
+                mime_type,
+                uploaded_at
+             FROM report_photos 
+             WHERE report_id = $1 AND sent_to_firebase = false
+             ORDER BY uploaded_at ASC`,
+            [reportId]
+        );
+
+        console.log(`📸 ${photosResult.rows.length} photos à inclure dans le rapport traité`);
+
+        // Formater les photos comme dans Firebase (même format que les reports originaux)
+        const photos = photosResult.rows.map(photo => {
+            let photoBase64 = photo.photo_base64;
+            
+            // Nettoyer le base64 si nécessaire (enlever "data:image/jpeg;base64,")
+            if (typeof photoBase64 === 'string' && photoBase64.includes('base64,')) {
+                photoBase64 = photoBase64.split('base64,')[1];
+            }
+            
+            // Retourner le base64 pur (sans prefix)
+            return photoBase64;
+        }).filter(photo => photo && typeof photo === 'string'); // Filtrer les valeurs nulles
+
+        return photos;
+        
+    } catch (error) {
+        console.error('Erreur récupération photos pour Firebase:', error);
+        return []; // Retourner un tableau vide en cas d'erreur
+    }
 }
 
 async function syncDownloadReports(req, res) {
@@ -572,7 +646,9 @@ const getSyncStatus = async (req, res) => {
   }
 };
 
-// Upload un seul report_sync vers Firebase par son ID
+/**
+ * Upload un seul report_sync vers Firebase par son ID (version améliorée)
+ */
 async function uploadReportSync(req, res) {
   const client = await pool.connect();
 
@@ -581,14 +657,17 @@ async function uploadReportSync(req, res) {
 
     await client.query('BEGIN');
 
-    const result = await pool.query(
+    // Récupérer le report_sync avec plus d'informations
+    const result = await client.query(
       `SELECT 
         r.id, r.firebase_id, r.longitude, r.latitude, r.city,
-        r.report_status_id, r.problem_type_id,
-        rs.id as sync_id, rs.surface, rs.budget, rs.progress, rs.company_id, rs.sent_to_firebase,
+        r.report_status_id, r.problem_type_id, r.photos_synced,
+        rs.id as sync_id, rs.surface, rs.budget, rs.progress, rs.company_id, 
+        rs.sent_to_firebase, rs.photos_synced as sync_photos_synced,
         c.name as company_name,
         pt.name as problem_type_name,
-        rst.name as status_name
+        rst.name as status_name,
+        (SELECT COUNT(*) FROM report_photos rp WHERE rp.report_id = r.id AND rp.sent_to_firebase = false) as unsynced_photos_count
       FROM report_syncs rs
       INNER JOIN reports r ON rs.report_id = r.id
       LEFT JOIN companies c ON rs.company_id = c.id
@@ -604,18 +683,43 @@ async function uploadReportSync(req, res) {
     }
 
     const row = result.rows[0];
+    
+    // Synchroniser vers Firebase (création ou mise à jour)
     await syncUpload(row, client);
     
     await client.query('COMMIT');
 
+    // Récupérer le compte final des photos
+    const photosCountResult = await client.query(
+      'SELECT COUNT(*) as count FROM report_photos WHERE report_id = $1 AND sent_to_firebase = true',
+      [row.id]
+    );
+
     res.json({ 
+      success: true,
       message: 'Signalement synchronisé vers Firebase avec succès',
-      sync_id: id
+      sync_id: id,
+      report_id: row.id,
+      photos_synced: parseInt(photosCountResult.rows[0].count) || 0,
+      already_exists: false
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erreur uploadReportSync:', error);
-    res.status(500).json({ error: error.message });
+    
+    // Vérifier si l'erreur est due à un doublon
+    if (error.message && error.message.includes('already exists') || error.message.includes('exists')) {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Ce rapport existe déjà dans Firebase',
+        message: 'Aucune action nécessaire'
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   } finally {
     client.release();
   }

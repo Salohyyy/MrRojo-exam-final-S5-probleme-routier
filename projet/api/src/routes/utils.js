@@ -10,7 +10,8 @@ const {
   createReportStatus,
   updateReportStatus,
   deleteReportStatus,
-  getProblemTypes
+  getProblemTypes,
+  getRepairTypes
 } = require('../controllers/utilsController');
 
 // Routes Companies
@@ -335,5 +336,8 @@ router.delete('/report-statuses/:id', verifyFirebaseToken, deleteReportStatus);
  *         description: Erreur serveur
  */
 router.get('/problem-types', getProblemTypes);
+
+
+router.get('/repair-types', verifyAnyToken, getRepairTypes);
 
 module.exports = router;
