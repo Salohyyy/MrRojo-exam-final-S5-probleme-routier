@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const { syncUserToPostgres, syncDownload, syncUpload } = require('../utils/syncHelper');
 const reportSyncModel = require('../models/reportSyncModel');
 const reportPhotosModel = require('../models/ReportPhotosModel');
+const { use } = require('../routes/employeeAuth');
 
 async function createReport(req, res) {
   const { longitude, latitude, city, problemTypeId, photos = [] } = req.body;
@@ -184,6 +185,77 @@ async function addPhotosToReport(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
+
+const useFirebaseReportPhotos = (firebaseReportId) => {
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!firebaseReportId) return;
+
+    const fetchPhotos = async () => {
+      setLoading(true);
+      try {
+        let photosData = [];
+        
+        // Essayer d'abord dans reports_traites_photos (rapports traités)
+        const treatedPhotosRef = collection(db, 'reports_traites_photos');
+        const treatedPhotosQuery = query(treatedPhotosRef, where('report_id', '==', firebaseReportId));
+        const treatedPhotosSnapshot = await getDocs(treatedPhotosQuery);
+        
+        if (!treatedPhotosSnapshot.empty) {
+          // Photos dans reports_traites_photos
+          photosData = treatedPhotosSnapshot.docs.map(doc => ({
+            id: doc.id,
+            firebase_id: doc.id,
+            photo_base64: doc.data().photo_base64,
+            mime_type: doc.data().mime_type || 'image/jpeg',
+            uploaded_at: doc.data().uploaded_at?.toDate() || new Date(),
+            source: 'treated'
+          }));
+        } else {
+          // Essayer dans les photos originales (reports collection)
+          const originalReportRef = doc(db, 'reports', firebaseReportId);
+          const originalReportDoc = await getDoc(originalReportRef);
+          
+          if (originalReportDoc.exists()) {
+            const reportData = originalReportDoc.data();
+            if (reportData.photos && Array.isArray(reportData.photos)) {
+              photosData = reportData.photos.map((photoBase64, index) => ({
+                id: `${firebaseReportId}_photo_${index}`,
+                firebase_id: `${firebaseReportId}_photo_${index}`,
+                photo_base64: photoBase64,
+                mime_type: 'image/jpeg',
+                uploaded_at: reportData.reported_at?.toDate() || new Date(),
+                source: 'original'
+              }));
+            }
+          }
+        }
+
+        // Formater les photos pour l'affichage
+        const formattedPhotos = photosData.map(photo => ({
+          ...photo,
+          full_base64: photo.photo_base64.startsWith('data:')
+            ? photo.photo_base64
+            : `data:${photo.mime_type};base64,${photo.photo_base64}`
+        }));
+
+        setPhotos(formattedPhotos);
+      } catch (err) {
+        setError(err.message);
+        console.error('Erreur chargement photos Firebase:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPhotos();
+  }, [firebaseReportId]);
+
+  return { photos, loading, error };
+};
 
 const getReportPhotos = async (req, res) => {
   const { reportId } = req.params;
@@ -492,5 +564,6 @@ module.exports = {
   syncDownload: syncDownloadReports,
   getReportSyncs,
   updateReportSyncStatus,
-  getSyncStatus
+  getSyncStatus,
+  useFirebaseReportPhotos,
 };

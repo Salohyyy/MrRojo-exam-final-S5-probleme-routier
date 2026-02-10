@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { MapPin, Hammer, Wallet, Move, Info, Image, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import useReportsTraite from '../../hooks/useReportsTraite';
-import useReportPhotos from '../../hooks/useReportPhotos';
+import useFirebaseReportPhotos from '../../hooks/useReportPhotos'; // 👈 Nouveau hook
 import L from 'leaflet';
 
 // Fonction pour changer la couleur de l'icône selon le problème
@@ -28,12 +28,12 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
   const [selectedReportPhotos, setSelectedReportPhotos] = useState([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
-  const [hoveredReportId, setHoveredReportId] = useState(null);
+  const [hoveredFirebaseId, setHoveredFirebaseId] = useState(null); // 👈 Utiliser firebase_id
 
-  // Récupérer les photos du rapport survolé
-  const { photos: hoveredPhotos, loading: photosLoading } = useReportPhotos(hoveredReportId);
+  // Récupérer les photos depuis Firebase
+  const { photos: hoveredPhotos, loading: photosLoading } = useFirebaseReportPhotos(hoveredFirebaseId);
 
-  const openPhotoViewer = (reportId, photos) => {
+  const openPhotoViewer = (photos) => {
     setSelectedReportPhotos(photos);
     setCurrentPhotoIndex(0);
     setShowPhotoViewer(true);
@@ -50,6 +50,13 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
 
   const prevPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev - 1 + selectedReportPhotos.length) % selectedReportPhotos.length);
+  };
+
+  // Fonction pour récupérer le firebase_id depuis le rapport
+  const getFirebaseId = (report) => {
+    // Si le rapport vient de reports_traites, il a original_firebase_id
+    // Sinon, il a firebase_id
+    return report.original_firebase_id || report.firebase_id || report.id.toString();
   };
 
   return (
@@ -102,18 +109,20 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
           const lng = parseFloat(report.longitude);
           if (isNaN(lat) || isNaN(lng)) return null;
 
+          const firebaseId = getFirebaseId(report);
+
           return (
             <Marker 
-              key={report.id} 
+              key={report.id || firebaseId} 
               position={[lat, lng]}
               icon={getMarkerIcon(report.problem_type_name)}
               eventHandlers={{
                 mouseover: (e) => {
                   e.target.openPopup();
-                  setHoveredReportId(report.id);
+                  setHoveredFirebaseId(firebaseId);
                 },
                 mouseout: () => {
-                  setHoveredReportId(null);
+                  setHoveredFirebaseId(null);
                 }
               }}
             >
@@ -149,7 +158,7 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                     </div>
                   </div>
 
-                  {/* Section Photos */}
+                  {/* Section Photos depuis Firebase */}
                   <div style={{ marginTop: '15px' }}>
                     <div style={{ 
                       display: 'flex', 
@@ -162,13 +171,13 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                         <strong>Photos du signalement</strong>
                       </div>
                       <span style={{ fontSize: '12px', color: '#7f8c8d' }}>
-                        {hoveredReportId === report.id && photosLoading ? 
+                        {hoveredFirebaseId === firebaseId && photosLoading ? 
                           'Chargement...' : 
                           `${hoveredPhotos.length} photo(s)`}
                       </span>
                     </div>
 
-                    {hoveredReportId === report.id && hoveredPhotos.length > 0 && (
+                    {hoveredFirebaseId === firebaseId && hoveredPhotos.length > 0 && (
                       <div style={{ 
                         display: 'grid', 
                         gridTemplateColumns: 'repeat(3, 1fr)', 
@@ -186,7 +195,7 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                               overflow: 'hidden',
                               cursor: 'pointer'
                             }}
-                            onClick={() => openPhotoViewer(report.id, hoveredPhotos)}
+                            onClick={() => openPhotoViewer(hoveredPhotos)}
                             title="Cliquer pour voir en grand"
                           >
                             <img 
@@ -200,6 +209,10 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                               }}
                               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZWVlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                              }}
                             />
                             {index === 5 && hoveredPhotos.length > 6 && (
                               <div style={{
@@ -224,7 +237,7 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                       </div>
                     )}
 
-                    {hoveredReportId === report.id && hoveredPhotos.length === 0 && !photosLoading && (
+                    {hoveredFirebaseId === firebaseId && hoveredPhotos.length === 0 && !photosLoading && (
                       <div style={{
                         padding: '10px',
                         background: '#f8f9fa',
@@ -237,7 +250,7 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                       </div>
                     )}
 
-                    {hoveredReportId === report.id && photosLoading && (
+                    {hoveredFirebaseId === firebaseId && photosLoading && (
                       <div style={{
                         padding: '10px',
                         background: '#f8f9fa',
@@ -316,6 +329,10 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                 maxHeight: '80vh',
                 objectFit: 'contain',
                 borderRadius: '8px'
+              }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZWVlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vbiBkaXNwb25pYmxlPC90ZXh0Pjwvc3ZnPg==';
               }}
             />
           </div>
@@ -401,6 +418,10 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
                     height: '100%',
                     objectFit: 'cover'
                   }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5WaWRlbzwvdGV4dD48L3N2Zz4=';
+                  }}
                 />
               </div>
             ))}
@@ -414,6 +435,9 @@ function MapReports({ showAdminButton, onAdminButtonClick }) {
             fontSize: '14px'
           }}>
             Photo {currentPhotoIndex + 1} sur {selectedReportPhotos.length}
+            <div style={{ fontSize: '12px', color: '#aaa', marginTop: '5px' }}>
+              Source: {selectedReportPhotos[0]?.source === 'treated' ? 'Rapports traités' : 'Rapports originaux'}
+            </div>
           </div>
         </div>
       )}
