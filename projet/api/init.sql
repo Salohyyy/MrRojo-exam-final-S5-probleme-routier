@@ -217,3 +217,33 @@ ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;
  
 ALTER TABLE report_syncs 
 ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;
+
+-- Ajoutez une colonne pour le type de réparation dans report_syncs
+ALTER TABLE report_syncs ADD COLUMN IF NOT EXISTS repair_type_level INTEGER;
+
+-- Créez une table pour les types de réparation si vous voulez les gérer proprement
+CREATE TABLE IF NOT EXISTS repair_types (
+    id BIGSERIAL PRIMARY KEY,
+    level INTEGER UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    severity VARCHAR(50)
+);
+
+-- Insérez les niveaux de réparation
+INSERT INTO repair_types (level, name, description, severity) VALUES
+(1, 'Niveau 1 - Mineur', 'Réparation superficielle, entretien léger', 'faible'),
+(2, 'Niveau 2', 'Petits travaux de maintenance', 'faible'),
+(3, 'Niveau 3', 'Réparations modérées', 'moyen'),
+(4, 'Niveau 4', 'Travaux de consolidation', 'moyen'),
+(5, 'Niveau 5', 'Réparations importantes', 'moyen'),
+(6, 'Niveau 6', 'Travaux structuraux légers', 'élevé'),
+(7, 'Niveau 7', 'Réhabilitation partielle', 'élevé'),
+(8, 'Niveau 8', 'Réhabilitation complète', 'élevé'),
+(9, 'Niveau 9', 'Reconstruction partielle', 'critique'),
+(10, 'Niveau 10 - Urgent', 'Reconstruction totale, danger imminent', 'critique')
+ON CONFLICT (level) DO NOTHING;
+
+-- Ajoutez une clé étrangère si vous utilisez la table repair_types
+ALTER TABLE report_syncs 
+ADD CONSTRAINT fk_repair_type FOREIGN KEY (repair_type_level) REFERENCES repair_types(level);
