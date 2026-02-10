@@ -73,7 +73,7 @@ function BlockedUsers() {
 
       {blockedUsers.length === 0 ? (
         <div style={styles.empty}>
-          <div style={styles.emptyIcon}>✅</div>
+          <div style={styles.emptyIcon}></div>
           <p style={styles.emptyText}>Aucun utilisateur bloqué</p>
           <p style={styles.emptyHint}>Tous les utilisateurs peuvent se connecter normalement</p>
         </div>

@@ -37,7 +37,7 @@ async function testEndpoint(endpoint) {
     }
     
     if (status >= 200 && status < 300) {
-      console.log('✅ SUCCÈS');
+      console.log(' SUCCÈS');
     } else {
       console.log('❌ ÉCHEC');
     }

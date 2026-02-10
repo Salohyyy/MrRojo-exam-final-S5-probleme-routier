@@ -55,7 +55,7 @@ function Login({ onLoginSuccess, onVisitorClick }) {
               autoFocus
             />
           </div>
-
+ 
           <div style={styles.field}>
             <label style={styles.label}>Mot de passe</label>
             <input

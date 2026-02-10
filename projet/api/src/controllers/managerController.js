@@ -61,12 +61,12 @@ const updateReportSyncStatus = async (req, res) => {
 
     // 2. Update reports status
     if (status_id) {
-      await client.query('UPDATE reports SET report_status_id = $1, updated_at = NOW() WHERE id = $2', [status_id, reportId]);
+      await client.query('UPDATE reports SET report_status_id = $1 WHERE id = $2', [status_id, reportId]);
     }
 
     // 3. Update report_syncs progress if provided
     if (progress !== undefined) {
-      await client.query('UPDATE report_syncs SET progress = $1, updated_at = NOW() WHERE id = $2', [progress, id]);
+      await client.query('UPDATE report_syncs SET progress = $1 WHERE id = $2', [progress, id]);
     }
 
     await client.query('COMMIT');
