@@ -91,8 +91,14 @@ const unreadCount = computed(() =>
 /** Flag pour ignorer le premier snapshot (chargement initial) */
 let isFirstSnapshot = true;
 
-/** Référence vers la fonction de désinscription du listener */
+/** Flag pour ignorer le premier snapshot reports_traites */
+let isFirstSnapshotTraites = true;
+
+/** Référence vers la fonction de désinscription du listener reports */
 let unsubscribe: Unsubscribe | null = null;
+
+/** Référence vers la fonction de désinscription du listener reports_traites */
+let unsubscribeTraites: Unsubscribe | null = null;
 
 // ─── Composable ──────────────────────────────────────────────
 
@@ -201,8 +207,78 @@ export function useNotifications() {
         statusCache.value.set(doc.id, newStatusId);
       });
     }, (error) => {
-      console.error('[Notifications] Erreur listener Firestore:', error);
+      console.error('[Notifications] Erreur listener Firestore (reports):', error);
       isListening.value = false;
+    });
+
+    // ────────────────────────────────────────────────────────
+    // LISTENER FIRESTORE onSnapshot - REPORTS TRAITÉS
+    // Écoute la collection "reports_traites" filtrée par user_id
+    // pour détecter les changements de statut après traitement
+    // ────────────────────────────────────────────────────────
+    const traitesQuery = query(
+      collection(db, 'reports_traites'),
+      where('user_id', '==', userId)
+    );
+
+    isFirstSnapshotTraites = true;
+
+    unsubscribeTraites = onSnapshot(traitesQuery, (snapshot) => {
+      if (isFirstSnapshotTraites) {
+        console.log(`[Notifications] Chargement initial reports_traites: ${snapshot.docs.length} signalement(s)`);
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const statusId = String(data.report_status_id || '');
+          statusCache.value.set(`traite_${doc.id}`, statusId);
+        });
+        isFirstSnapshotTraites = false;
+        console.log('[Notifications] Cache reports_traites initialisé ✅');
+        return;
+      }
+
+      snapshot.docChanges().forEach((change: DocumentChange) => {
+        if (change.type !== 'modified') return;
+
+        const doc = change.doc;
+        const data = doc.data();
+        const newStatusId = String(data.report_status_id || '');
+        const cacheKey = `traite_${doc.id}`;
+        const oldStatusId = statusCache.value.get(cacheKey);
+
+        if (oldStatusId !== undefined && oldStatusId !== newStatusId) {
+          const city = data.city || 'Inconnu';
+          const oldLabel = getStatusLabel(oldStatusId);
+          const newLabel = getStatusLabel(newStatusId);
+          const statusName = data.status_name || newLabel;
+
+          console.log(
+            `[Notifications] Changement détecté (traité) sur ${doc.id}: ` +
+            `"${oldLabel}" → "${statusName}"`
+          );
+
+          const title = `📍 Signalement mis à jour`;
+          const body = `Votre signalement à ${city} est passé de "${oldLabel}" à "${statusName}"`;
+
+          showLocalNotification(title, body, {
+            reportId: doc.id,
+            oldStatus: oldStatusId,
+            newStatus: newStatusId
+          });
+
+          notifications.value.unshift({
+            id: `notif-${Date.now()}-traite-${doc.id}`,
+            title,
+            body,
+            reportId: doc.id,
+            timestamp: new Date(),
+            read: false
+          });
+        }
+
+        statusCache.value.set(cacheKey, newStatusId);
+      });
+    }, (error) => {
+      console.error('[Notifications] Erreur listener Firestore (reports_traites):', error);
     });
   }
 
@@ -214,12 +290,18 @@ export function useNotifications() {
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
-      console.log('[Notifications] Listener Firestore arrêté');
+      console.log('[Notifications] Listener reports arrêté');
+    }
+    if (unsubscribeTraites) {
+      unsubscribeTraites();
+      unsubscribeTraites = null;
+      console.log('[Notifications] Listener reports_traites arrêté');
     }
 
     // Reset complet de l'état
     isListening.value = false;
     isFirstSnapshot = true;
+    isFirstSnapshotTraites = true;
     statusCache.value.clear();
     notifications.value = [];
   }
