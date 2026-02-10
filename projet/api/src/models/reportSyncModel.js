@@ -10,6 +10,7 @@ const getAllReportSyncs = async () => {
       rs.report_status_id,
       rs.company_id,
       rs.report_id,
+      rs.sent_to_firebase,
       rst.name as status_name,
       rst.level as status_level,
       c.name as company_name,

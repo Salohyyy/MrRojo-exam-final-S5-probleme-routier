@@ -5,12 +5,14 @@ const {
   getAllReportsFromPostgres,
   getReportById,
   getReportsByCity,
-  getReportSyncs
+  getReportSyncs,
+  getCombinedReports
 } = require('../controllers/visitorReportsController');
 
 router.get('/', getAllReports);
 router.get('/postgres', getAllReportsFromPostgres);
 router.get('/syncs', getReportSyncs);
+router.get('/combined', getCombinedReports);
 router.get('/:id', getReportById);
 router.get('/city/:city', getReportsByCity);
 

@@ -4,35 +4,49 @@ const useReportsTraite = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [breakdown, setBreakdown] = useState({ local: 0, firebase_pending: 0 });
 
   // En production Docker, l'API est accessible via /api grâce au proxy Nginx
-  const API_URL = '/api/visitor'; // Updated to point to visitor routes prefix
+  const API_URL = '/api/visitor';
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Fetching reports from:', `${API_URL}/reports`);
+      console.log('🔄 Fetching combined reports from:', `${API_URL}/reports/combined`);
 
-      // On récupère les données depuis Firebase (via l'API originale)
-      const response = await fetch(`${API_URL}/reports`);
+      // Ajouter un timeout de 15 secondes pour la requête
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      // Utiliser le nouvel endpoint combiné
+      const response = await fetch(`${API_URL}/reports/combined`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ Reports fetched:', data);
+      console.log('✅ Combined reports fetched:', data);
 
       if (data.success) {
         setReports(data.data);
+        setBreakdown(data.breakdown || { local: 0, firebase_pending: 0 });
       } else {
         throw new Error(data.message || 'Erreur lors de la récupération des données');
       }
     } catch (err) {
       console.error('❌ Erreur:', err);
-      setError(err.message);
+      if (err.name === 'AbortError') {
+        setError('Délai de connexion dépassé - vérifiez votre connexion');
+      } else {
+        setError(err.message);
+      }
       setReports([]);
     } finally {
       setLoading(false);
@@ -52,7 +66,7 @@ const useReportsTraite = () => {
 
     try {
       console.log(`🔄 Updating status for sync #${syncId}...`);
-      const response = await fetch(`/api/manager/report-syncs/${syncId}/status`, { // Updated to point to manager routes
+      const response = await fetch(`/api/manager/report-syncs/${syncId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status_id: statusId, progress })
@@ -73,7 +87,7 @@ const useReportsTraite = () => {
     }
   };
 
-  return { reports, loading, error, updateStatus, refetch: fetchReports };
+  return { reports, loading, error, breakdown, updateStatus, refetch: fetchReports };
 };
 
 export default useReportsTraite;

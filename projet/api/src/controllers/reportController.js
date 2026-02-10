@@ -317,6 +317,55 @@ async function getAllReportSyncHistories(req, res) {
   }
 }
 
+// Upload un seul report_sync vers Firebase par son ID
+async function uploadReportSync(req, res) {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params; // report_sync.id
+
+    await client.query('BEGIN');
+
+    const result = await pool.query(
+      `SELECT 
+        r.id, r.firebase_id, r.longitude, r.latitude, r.city,
+        r.report_status_id, r.problem_type_id,
+        rs.id as sync_id, rs.surface, rs.budget, rs.progress, rs.company_id, rs.sent_to_firebase,
+        c.name as company_name,
+        pt.name as problem_type_name,
+        rst.name as status_name
+      FROM report_syncs rs
+      INNER JOIN reports r ON rs.report_id = r.id
+      LEFT JOIN companies c ON rs.company_id = c.id
+      LEFT JOIN problem_types pt ON r.problem_type_id = pt.id
+      LEFT JOIN report_statuses rst ON rs.report_status_id = rst.id
+      WHERE rs.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Report sync non trouvé' });
+    }
+
+    const row = result.rows[0];
+    await syncUpload(row, client);
+    
+    await client.query('COMMIT');
+
+    res.json({ 
+      message: 'Signalement synchronisé vers Firebase avec succès',
+      sync_id: id
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur uploadReportSync:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   createReport,
   getAllReports,
@@ -324,6 +373,7 @@ module.exports = {
   updateReport,
   uploadReport,
   uploadAllReports,
+  uploadReportSync,
   syncDownload: syncDownloadReports,
   getReportSyncs,
   updateReportSyncStatus,

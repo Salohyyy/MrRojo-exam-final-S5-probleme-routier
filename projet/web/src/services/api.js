@@ -93,6 +93,7 @@ export const reportsAPI = {
   updateReportSyncStatus: (id, statusId, changedAt) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, changed_at: changedAt }),
   getReportSyncHistories: (id) => api.get(`/api/reports/syncs/${id}/histories`),
   getAllReportSyncHistories: () => api.get('/api/reports/syncs/histories'),
+  uploadReportSync: (id) => api.post(`/api/reports/syncs/${id}/upload`),
 };
 
 export const utilsAPI = { 

@@ -8,6 +8,7 @@ const {
   updateReport,
   uploadReport,
   uploadAllReports,
+  uploadReportSync,
   syncDownload,
   getReportSyncs,
   updateReportSyncStatus,
@@ -23,6 +24,7 @@ router.get('/syncs', verifyAnyToken, getReportSyncs);
 router.get('/syncs/histories', verifyAnyToken, getAllReportSyncHistories);
 router.get('/syncs/:id/histories', verifyAnyToken, getReportSyncHistories);
 router.put('/syncs/:id/status', verifyAnyToken, updateReportSyncStatus);
+router.post('/syncs/:id/upload', verifyAnyToken, uploadReportSync);
 router.get('/local', verifyAnyToken, getAllReports);
 router.get('/local/:id', verifyAnyToken, getReportById);
 router.put('/local/:id', verifyAnyToken, updateReport);

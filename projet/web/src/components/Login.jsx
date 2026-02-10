@@ -63,7 +63,7 @@ function Login({ onLoginSuccess, onVisitorClick }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
-              placeholder="••••••••"
+              placeholder="admin123"
               required
               disabled={loading}
             />
