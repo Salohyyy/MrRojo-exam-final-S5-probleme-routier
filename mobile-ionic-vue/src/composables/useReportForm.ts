@@ -9,7 +9,6 @@ export function useReportForm() {
   const showModal = ref(false);
   const city = ref('');
   const problemTypeId = ref<number | null>(1);
-  const reportStatusId = ref<number | null>(1);
   const userId = ref('');
   const clickedLat = ref<number | null>(null);
   const clickedLng = ref<number | null>(null);
@@ -39,7 +38,6 @@ export function useReportForm() {
     city.value = '';
     userId.value = '';
     problemTypeId.value = 1;
-    reportStatusId.value = 1;
     clickedLat.value = null;
     clickedLng.value = null;
     selectedPhotos.value = [];
@@ -94,7 +92,7 @@ export function useReportForm() {
         longitude: clickedLng.value,
         postgres_report_id: null,
         problem_type_id: Number(problemTypeId.value || 0),
-        report_status_id: Number(reportStatusId.value || 0),
+        report_status_id: 2, // Automatiquement "Signalé"
         reported_at: null,
         user_id: userId.value || '',
         photos: photosBase64
@@ -114,7 +112,6 @@ export function useReportForm() {
     showModal,
     city,
     problemTypeId,
-    reportStatusId,
     userId,
     clickedLat,
     clickedLng,
