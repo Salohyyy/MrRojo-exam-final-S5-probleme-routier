@@ -4,6 +4,7 @@ const helmet = require('helmet');
 require('dotenv').config();
 
 const { initDatabase } = require('./models/init');
+const { specs, swaggerUi } = require('./config/swagger');
 const employeeAuthRoutes = require('./routes/employeeAuth');
 const authRoutes = require('./routes/auth');
 const reportRoutes = require('./routes/reports');
@@ -20,6 +21,9 @@ const PORT = process.env.PORT || 4000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
 app.use('/api/employee-auth', employeeAuthRoutes);
@@ -51,6 +55,7 @@ async function startServer() {
       console.log('   - POST /api/auth/failed-attempt');
       console.log('   - POST /api/auth/successful-login');
       console.log('   - GET  /api/admin/*');
+      console.log('   - GET  /api-docs (Documentation Swagger)');
       console.log('');
       console.log('🔐 Admin par défaut: admin / admin123');
     });

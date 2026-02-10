@@ -37,7 +37,7 @@ const getAllReports = async (req, res) => {
       });
     });
 
-    console.log(`✅ ${reports.length} signalements récupérés depuis Firebase (reports_traites)`);
+    console.log(` ${reports.length} signalements récupérés depuis Firebase (reports_traites)`);
     if (reports.length > 0) {
       console.log('🔍 Exemple de signalement (premier élément):', JSON.stringify(reports[0], null, 2));
     }
@@ -63,7 +63,7 @@ const getAllReportsFromPostgres = async (req, res) => {
   try {
     const reports = await getReports(pool);
 
-    console.log(`✅ ${reports.length} signalements récupérés depuis PostgreSQL`);
+    console.log(` ${reports.length} signalements récupérés depuis PostgreSQL`);
 
     res.status(200).json({
       success: true,

@@ -24,7 +24,7 @@ try {
             return;
         }
 
-        console.log(`✅ Succès ! ${collections.length} collection(s) trouvée(s) :`);
+        console.log(` Succès ! ${collections.length} collection(s) trouvée(s) :`);
         
         for (let col of collections) {
             console.log(`   - Nom : ${col.id}`);

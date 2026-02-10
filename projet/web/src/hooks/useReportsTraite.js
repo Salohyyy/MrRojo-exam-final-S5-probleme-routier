@@ -23,7 +23,7 @@ const useReportsTraite = () => {
       }
 
       const data = await response.json();
-      console.log('✅ Reports fetched:', data);
+      console.log(' Reports fetched:', data);
 
       if (data.success) {
         setReports(data.data);
@@ -61,7 +61,7 @@ const useReportsTraite = () => {
       const data = await response.json();
 
       if (data.success) {
-        console.log('✅ Mise à jour réussie !');
+        console.log(' Mise à jour réussie !');
         fetchReports(); // Rafraîchir la liste
         return data.data;
       } else {

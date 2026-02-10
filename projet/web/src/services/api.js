@@ -90,9 +90,13 @@ export const reportsAPI = {
   syncDownload: () => api.post('/api/reports/sync/download'),
   getReportSyncs: () => api.get('/api/reports/syncs'),
   getPublicReportSyncs: () => api.get('/api/visitor/reports/syncs'),
-  updateReportSyncStatus: (id, statusId, changedAt) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, changed_at: changedAt }),
   getReportSyncHistories: (id) => api.get(`/api/reports/syncs/${id}/histories`),
   getAllReportSyncHistories: () => api.get('/api/reports/syncs/histories'),
+  updateReportSyncStatus: (id, statusId, progress) => api.put(`/api/reports/syncs/${id}/status`, { report_status_id: statusId, progress }),
+  getReportPhotos: (reportId) => api.get(`/api/reports/${reportId}/photos`),
+  addReportPhoto: (reportId, photoUrl) => api.post(`/api/reports/${reportId}/photos`, { photo_url: photoUrl }),
+  deleteReportPhoto: (reportId, photoId) => api.delete(`/api/reports/${reportId}/photos/${photoId}`),
+  getSyncStatus: () => api.get('/api/reports/sync/status'), 
 };
 
 export const utilsAPI = { 
