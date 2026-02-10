@@ -164,6 +164,8 @@ router.get('/syncs/:id/histories', verifyAnyToken, getReportSyncHistories);
  *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.put('/syncs/:id/status', verifyAnyToken, updateReportSyncStatus);
+
+
 router.post('/syncs/:id/upload', verifyAnyToken, uploadReportSync);
 
 /**
