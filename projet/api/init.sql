@@ -187,7 +187,7 @@ ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
 -- Insertion des statuts de rapport
 INSERT INTO report_statuses (id, name, level) VALUES (1, 'Nouveau', 1), (2, 'En cours', 2), (3, 'Terminé', 3), (4, 'Rejeté', 0);
 
-INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation') , (5, 'Autre');
+INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation') , (5, 'hazo nianjera'), (6, 'accident');
 
 INSERT INTO companies (id, name, address) VALUES (1, 'Colas', 'Analakely'), (2, 'STB', 'Ankadilana'), (3, 'Vinci', 'Isoraka');
 
