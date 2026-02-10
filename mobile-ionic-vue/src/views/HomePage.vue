@@ -7,6 +7,10 @@
           Suivi des Travaux
         </ion-title>
         <ion-buttons slot="end">
+          <!-- Bouton Actualiser -->
+          <ion-button @click="refreshData" class="auth-button">
+            <ion-icon slot="icon-only" :icon="refreshOutline"></ion-icon>
+          </ion-button>
           <!-- Cloche de notifications (visible si connecté) -->
           <ion-button v-if="isAuthenticated" @click="toggleNotifications" class="auth-button notif-bell">
             <ion-icon slot="icon-only" :icon="notificationsOutline"></ion-icon>
@@ -245,15 +249,6 @@
                   <ion-select-option :value="6">💧 Inondation</ion-select-option>
                 </ion-select>
               </ion-item>
-
-              <ion-item lines="none" class="input-item">
-                <ion-label position="stacked" class="input-label">Statut</ion-label>
-                <ion-select v-model="reportStatusId" interface="action-sheet" class="select-field">
-                  <ion-select-option :value="1">🔄 En cours</ion-select-option>
-                  <ion-select-option :value="2">🚨 Signalé</ion-select-option>
-                  <ion-select-option :value="5">✅ Terminé</ion-select-option>
-                </ion-select>
-              </ion-item>
             </div>
 
             <!-- Photos Section -->
@@ -324,7 +319,7 @@
 
 <script setup lang="ts">
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonModal, IonButton, IonInput, IonSelect, IonSelectOption, IonButtons, IonIcon, IonSegment, IonSegmentButton, alertController } from '@ionic/vue';
-import { logInOutline, logOutOutline, mapOutline, statsChartOutline, locationOutline, closeOutline, cameraOutline, imagesOutline, closeCircle, notificationsOutline, personOutline, listOutline } from 'ionicons/icons';
+import { logInOutline, logOutOutline, mapOutline, statsChartOutline, locationOutline, closeOutline, cameraOutline, imagesOutline, closeCircle, notificationsOutline, personOutline, listOutline, refreshOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReports } from '../composables/useReports';
@@ -342,12 +337,11 @@ const currentView = ref('map');
 // Utilisation des composables
 const { displayedItems, totalItems, totalBudget, avgProgress, totalTermines, filterMode, loadReports, loadMyReports, setFilter } = useReports();
 const { currentUser, isAuthenticated, logout } = useAuth();
-const { initializeMap, onMapClick } = useMap('map');
+const { initializeMap, reloadMarkers, onMapClick } = useMap('map');
 const { 
   showModal, 
   city, 
   problemTypeId, 
-  reportStatusId, 
   userId, 
   clickedLat, 
   clickedLng, 
@@ -445,6 +439,11 @@ function getProblemIcon(problemTypeId?: string | number): string {
   if (!problemTypeId) return DEFAULT_STYLE.icon || '⚠️';
   const style = PROBLEM_STYLES[String(problemTypeId)];
   return style?.icon || DEFAULT_STYLE.icon || '⚠️';
+}
+
+async function refreshData() {
+  await loadReports();
+  await reloadMarkers();
 }
 
 onMounted(async () => {

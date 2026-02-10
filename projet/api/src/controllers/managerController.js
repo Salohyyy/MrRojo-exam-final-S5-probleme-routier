@@ -92,7 +92,7 @@ const updateReportSyncStatus = async (req, res) => {
     const updatedData = await pool.query(query, [id]);
     const data = updatedData.rows[0];
 
-    // 5. Sync to Firebase (collection report_traites)
+    // 5. Sync to Firebase (collection reports_traites)
     if (data) {
       await db.collection('reports_traites').doc(data.id.toString()).set({
         ...data,
