@@ -9,6 +9,7 @@ const ManagerDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [companies, setCompanies] = useState([]);
     const [statuses, setStatuses] = useState([]);
+    const [repairTypes, setRepairTypes] = useState([]);
     const [selectedReport, setSelectedReport] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [showPhotosModal, setShowPhotosModal] = useState(false);
@@ -22,18 +23,39 @@ const ManagerDashboard = () => {
         budget: '',
         companyId: '',
         reportStatusId: '',
-        progress: 0
+        progress: 0,
+        repairTypeLevel: ''
     });
 
-    // Charger les données au montage et lors du changement de filtre
+    // Charger les données au montage
     useEffect(() => {
         loadReports();
-    }, [filter]);
-
-    useEffect(() => {
         loadCompanies();
         loadStatuses();
-    }, []);
+        loadRepairTypes();
+    }, [filter]);
+
+    const loadRepairTypes = async () => {
+        try {
+            const response = await utilsAPI.getRepairTypes();
+            setRepairTypes(response.data);
+        } catch (error) {
+            console.error('Erreur chargement types de réparation:', error);
+            // Types par défaut si l'API n'existe pas encore
+            setRepairTypes([
+                { level: 1, name: 'Niveau 1 - Mineur', severity: 'faible' },
+                { level: 2, name: 'Niveau 2', severity: 'faible' },
+                { level: 3, name: 'Niveau 3', severity: 'moyen' },
+                { level: 4, name: 'Niveau 4', severity: 'moyen' },
+                { level: 5, name: 'Niveau 5', severity: 'moyen' },
+                { level: 6, name: 'Niveau 6', severity: 'élevé' },
+                { level: 7, name: 'Niveau 7', severity: 'élevé' },
+                { level: 8, name: 'Niveau 8', severity: 'élevé' },
+                { level: 9, name: 'Niveau 9', severity: 'critique' },
+                { level: 10, name: 'Niveau 10 - Urgent', severity: 'critique' }
+            ]);
+        }
+    };
 
     const loadReports = async () => {
         setLoading(true);
@@ -112,6 +134,7 @@ const ManagerDashboard = () => {
         }
     };
 
+
     const handleEditReport = (report) => {
         setSelectedReport(report);
         setFormData({
@@ -119,10 +142,12 @@ const ManagerDashboard = () => {
             budget: report.budget || '',
             companyId: report.company_id || '',
             reportStatusId: report.report_status_id || '',
-            progress: report.progress || 0
+            progress: report.progress || 0,
+            repairTypeLevel: report.repair_type_level || ''
         });
         setShowModal(true);
     };
+
 
     const handleSaveReport = async () => {
         try {
@@ -293,6 +318,7 @@ const ManagerDashboard = () => {
                                         <th>Surface</th>
                                         <th>Budget</th>
                                         <th>Entreprise</th>
+                                        <th>Type Réparation</th>
                                         <th>Photos</th>
                                         <th>Statut</th>
                                         <th>Actions</th>
@@ -320,6 +346,9 @@ const ManagerDashboard = () => {
                                                 {report.budget ? `${Number(report.budget).toLocaleString('fr-FR')} Ar` : '-'}
                                             </td>
                                             <td className="table-cell">{report.company_name || '-'}</td>
+                                            <td className="table-cell">
+                                                {getRepairTypeBadge(report.repair_type_level)}
+                                            </td>
                                             <td className="table-cell">
                                                 {report.photos_count > 0 ? (
                                                     <button
@@ -417,20 +446,26 @@ const ManagerDashboard = () => {
 
                             <div className="form-group">
                                 <label className="form-label">
-                                    Statut
+                                    <Wrench size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                    Type de Réparation (Niveau)
                                 </label>
                                 <select
-                                    value={formData.reportStatusId}
-                                    onChange={(e) => setFormData({ ...formData, reportStatusId: e.target.value })}
+                                    value={formData.repairTypeLevel}
+                                    onChange={(e) => setFormData({ ...formData, repairTypeLevel: e.target.value })}
                                     className="form-select"
                                 >
-                                    <option value="">Sélectionner un statut</option>
-                                    {statuses.map((s) => (
-                                        <option key={s.id} value={s.id}>
-                                            {s.name}
+                                    <option value="">Sélectionner un niveau</option>
+                                    {repairTypes.map((type) => (
+                                        <option key={type.level} value={type.level}>
+                                            Niveau {type.level} - {type.name} ({type.severity})
                                         </option>
                                     ))}
                                 </select>
+                                <div className="form-help">
+                                    <small>
+                                        1 (mineur) → 10 (urgent)
+                                    </small>
+                                </div>
                             </div>
 
                             <div className="form-group">
@@ -445,6 +480,12 @@ const ManagerDashboard = () => {
                                     onChange={(e) => setFormData({ ...formData, progress: e.target.value })}
                                     className="form-input"
                                 />
+                                <div className="progress-bar-container">
+                                    <div
+                                        className="progress-bar-fill"
+                                        style={{ width: `${formData.progress}%` }}
+                                    ></div>
+                                </div>
                             </div>
                         </div>
 
@@ -487,7 +528,7 @@ const ManagerDashboard = () => {
                                         e.target.src = '/placeholder-image.jpg'; // Image de secours
                                     }}
                                 />
-                                
+
                                 <div className="photo-nav">
                                     {selectedPhotoIndex > 0 && (
                                         <button
@@ -557,5 +598,24 @@ const ManagerDashboard = () => {
         </div>
     );
 };
+
+// Fonction pour afficher le badge du type de réparation
+const getRepairTypeBadge = (level) => {
+    if (!level) return <span className="repair-badge unknown">Non défini</span>;
+    
+    const getSeverityClass = (lvl) => {
+        if (lvl <= 2) return 'low';
+        if (lvl <= 5) return 'medium';
+        if (lvl <= 8) return 'high';
+        return 'critical';
+    };
+    
+    return (
+        <span className={`repair-badge repair-${getSeverityClass(level)}`}>
+            Niveau {level}
+        </span>
+    );
+};
+
 
 export default ManagerDashboard;

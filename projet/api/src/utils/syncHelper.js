@@ -408,12 +408,6 @@ async function syncUpload(row, client) {
  * @param {object} client - Client PostgreSQL pour la transaction
  * @returns {object} { count: nombre de rapports, photosCount: nombre de photos }
  */
-/**
- * Synchroniser les rapports depuis Firebase vers PostgreSQL (Download)
- * Inclut les photos associées à chaque rapport
- * @param {object} client - Client PostgreSQL pour la transaction
- * @returns {object} { count: nombre de rapports, photosCount: nombre de photos }
- */
 async function syncDownload(client) {
     let syncCount = 0;
     let totalPhotosCount = 0;
@@ -429,9 +423,6 @@ async function syncDownload(client) {
             const firebaseId = doc.id;
             
             try {
-                //  1. Créer ou récupérer l'utilisateur dans PostgreSQL
-                // Dans votre Firebase, user_id semble être un UID Firebase, pas un email
-                // On va créer un utilisateur avec cet UID comme username
                 const firebaseUserId = data.user_id || `firebase_user_${firebaseId}`;
                 
                 // Insérer dans la table users si nécessaire
@@ -443,14 +434,13 @@ async function syncDownload(client) {
                      RETURNING id`,
                     [
                         firebaseUserId,
-                        `${firebaseUserId}@firebase.local`,  // Email fictif
-                        1  // user_status_id = 'active'
+                        `${firebaseUserId}@firebase.local`,
+                        1 
                     ]
                 );
                 
                 const postgresUserId = userResult.rows[0].id;
 
-                //  2. UPSERT du rapport principal
                 const reportResult = await client.query(
                     `INSERT INTO reports (
                         reported_at, longitude, latitude, city, is_synced,
@@ -470,9 +460,9 @@ async function syncDownload(client) {
                         data.longitude ? Number(data.longitude) : null,
                         data.latitude ? Number(data.latitude) : null,
                         data.city || 'Inconnu',
-                        true,  // Marquer comme synchronisé
-                        data.report_status_id || 1,  // Default: Nouveau
-                        data.problem_type_id || 1,   // Default: Nid de poule
+                        doc.is_synced || false,
+                        data.report_status_id || 1,
+                        data.problem_type_id || 1,
                         postgresUserId,
                         firebaseId
                     ]
@@ -506,7 +496,7 @@ async function syncDownload(client) {
                         photos_synced: photosCount > 0
                     });
                 } catch (firebaseError) {
-                    console.warn(`⚠️ Impossible de mettre à jour Firebase pour ${firebaseId}:`, firebaseError);
+                    console.warn(` Impossible de mettre à jour Firebase pour ${firebaseId}:`, firebaseError);
                 }
 
                 syncCount++;

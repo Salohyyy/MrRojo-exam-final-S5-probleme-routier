@@ -167,6 +167,20 @@ async function getProblemTypes(req, res) {
     }
 }
 
+// Dans utilsController.js ou reportController.js
+async function getRepairTypes(req, res) {
+  try {
+    const result = await pool.query(
+      'SELECT id, level, name, description, severity FROM repair_types ORDER BY level ASC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erreur getRepairTypes:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
+// Dans routes/utils.js ou routes/reports.js
 module.exports = {
     // Companies
     getCompanies,
@@ -179,5 +193,6 @@ module.exports = {
     updateReportStatus,
     deleteReportStatus,
     // Problem Types
-    getProblemTypes
+    getProblemTypes,
+    getRepairTypes
 };

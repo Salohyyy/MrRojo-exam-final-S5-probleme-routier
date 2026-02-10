@@ -335,7 +335,7 @@ async function updateReport(req, res) {
 
   try {
     const { id } = req.params;
-    const { surface, budget, companyId, reportStatusId, progress } = req.body;
+    const { surface, budget, companyId, reportStatusId, progress, repairTypeLevel } = req.body;
 
     await client.query('BEGIN');
 
@@ -348,16 +348,16 @@ async function updateReport(req, res) {
       await client.query(
         `UPDATE report_syncs 
          SET surface = $1, budget = $2, progress = $3, 
-             report_status_id = $4, company_id = $5, sent_to_firebase = false
-         WHERE report_id = $6`,
-        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, id]
+             report_status_id = $4, company_id = $5, repair_type_level = $6, sent_to_firebase = false
+         WHERE report_id = $7`,
+        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, repairTypeLevel || null, id]
       );
     } else {
       await client.query(
         `INSERT INTO report_syncs 
-         (surface, budget, progress, report_status_id, company_id, report_id, sent_to_firebase)
-         VALUES ($1, $2, $3, $4, $5, $6, false)`,
-        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, id]
+         (surface, budget, progress, report_status_id, company_id, repair_type_level, report_id, sent_to_firebase)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, false)`,
+        [surface, budget || 0, progress || 0, reportStatusId || 1, companyId, repairTypeLevel || null, id]
       );
     }
 
@@ -382,6 +382,7 @@ async function updateReport(req, res) {
     client.release();
   }
 }
+
 async function uploadReport(req, res) {
   const client = await pool.connect();
 
