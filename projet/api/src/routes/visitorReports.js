@@ -13,7 +13,7 @@ const {
  * @swagger
  * /api/visitor/reports:
  *   get:
- *     summary: Récupérer tous les signalements (depuis Firebase: reports_traites)
+ *     summary: "Récupérer tous les signalements (depuis Firebase reports_traites)"
  *     tags: [Visitor]
  *     security: []
  *     responses:

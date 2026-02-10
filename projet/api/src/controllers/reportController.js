@@ -505,6 +505,27 @@ async function getReportSyncs(req, res) {
   }
 }
 
+async function getReportSyncHistories(req, res) {
+  const { id } = req.params;
+  try {
+    const histories = await reportSyncModel.getReportSyncHistories(id);
+    res.json(histories);
+  } catch (err) {
+    console.error('Erreur getReportSyncHistories:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
+
+async function getAllReportSyncHistories(req, res) {
+  try {
+    const histories = await reportSyncModel.getAllReportSyncHistories();
+    res.json(histories);
+  } catch (err) {
+    console.error('Erreur getAllReportSyncHistories:', err);
+    res.status(500).json({ error: 'Erreur serveur', details: err.message });
+  }
+}
+
 async function updateReportSyncStatus(req, res) {
   const { id } = req.params;
   const { report_status_id, progress } = req.body;
@@ -613,6 +634,8 @@ module.exports = {
   uploadReportSync,
   syncDownload: syncDownloadReports,
   getReportSyncs,
+  getReportSyncHistories,
+  getAllReportSyncHistories,
   updateReportSyncStatus, 
   getSyncStatus,
   useFirebaseReportPhotos,
