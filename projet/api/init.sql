@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50),
     email VARCHAR(50) UNIQUE,
     birth_date DATE,
+    firebase_uid VARCHAR(100) UNIQUE, -- UID Firebase pour liaison
+    password VARCHAR(255), -- Mot de passe en clair (si besoin, sinon NULL)
     user_status_id BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_status_id) REFERENCES user_statuses(id)

@@ -1,4 +1,6 @@
 const pool = require('../config/database');
+const { db } = require('../config/firebase');
+const admin = require('firebase-admin');
 
 const getAllReportSyncs = async () => {
   const result = await pool.query(`
@@ -59,6 +61,14 @@ const STATUS_PROGRESS_MAP = {
   4: 0     // Rejeté = 0%
 };
 
+// Mapping statut ID -> nom
+const STATUS_NAME_MAP = {
+  1: 'Nouveau',
+  2: 'En cours',
+  3: 'Terminé',
+  4: 'Rejeté'
+};
+
 const updateReportSyncStatus = async (id, statusId, changedAt) => {
   const client = await pool.connect();
   try {
@@ -70,16 +80,70 @@ const updateReportSyncStatus = async (id, statusId, changedAt) => {
     }
 
     const progress = STATUS_PROGRESS_MAP[parseInt(statusId)] ?? 0;
+    const statusName = STATUS_NAME_MAP[parseInt(statusId)] || 'Inconnu';
     const dateToUse = changedAt || new Date().toISOString();
 
-    const updateQuery = `UPDATE report_syncs SET report_status_id = $1, progress = $2 WHERE id = $3 RETURNING *`;
+    const updateQuery = `UPDATE report_syncs SET report_status_id = $1, progress = $2, sent_to_firebase = false WHERE id = $3 RETURNING *`;
     const result = await client.query(updateQuery, [statusId, progress, id]);
 
     if (result.rows.length > 0) {
+      const reportSync = result.rows[0];
+      
+      // Historique local
       await client.query(`
         INSERT INTO report_sync_histories (changed_at, report_status_id, report_sync_id)
         VALUES ($1, $2, $3)
       `, [dateToUse, statusId, id]);
+      
+      // Récupérer le firebase_id depuis reports
+      const reportResult = await client.query(
+        'SELECT firebase_id FROM reports WHERE id = $1',
+        [reportSync.report_id]
+      );
+      
+      const firebaseId = reportResult.rows[0]?.firebase_id;
+      
+      // ✅ METTRE À JOUR Firebase (reports_traites et reports)
+      if (firebaseId && db) {
+        try {
+          // 1. Mettre à jour reports_traites
+          const querySnapshot = await db.collection('reports_traites')
+            .where('original_firebase_id', '==', firebaseId)
+            .limit(1)
+            .get();
+          
+          if (!querySnapshot.empty) {
+            const docId = querySnapshot.docs[0].id;
+            await db.collection('reports_traites').doc(docId).update({
+              report_status_id: parseInt(statusId),
+              status_name: statusName,
+              progress: progress,
+              synced_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`📝 reports_traites/${docId} mis à jour: ${statusName} (${progress}%)`);
+          }
+          
+          // 2. Mettre à jour la collection reports originale
+          const originalReportRef = db.collection('reports').doc(firebaseId);
+          const originalDoc = await originalReportRef.get();
+          
+          if (originalDoc.exists) {
+            await originalReportRef.update({
+              report_status_id: parseInt(statusId),
+              status_name: statusName,
+              is_treated: true,
+              progress: progress,
+              updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`📝 reports/${firebaseId} mis à jour: ${statusName} (${progress}%)`);
+          }
+          
+        } catch (firebaseError) {
+          console.warn('⚠️ Erreur mise à jour Firebase:', firebaseError.message);
+          // Ne pas bloquer la mise à jour locale
+        }
+      }
+      
       await client.query('COMMIT');
     } else {
       await client.query('ROLLBACK');

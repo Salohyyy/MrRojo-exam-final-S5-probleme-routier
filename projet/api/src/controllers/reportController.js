@@ -428,22 +428,13 @@ async function uploadReport(req, res) {
   }
 }
 
-// Fonction pour vérifier si un rapport existe déjà
-async function checkReportTraiteExists(originalFirebaseId) {
-  const querySnapshot = await db.collection('reports_traites')
-    .where('original_firebase_id', '==', originalFirebaseId)
-    .limit(1)
-    .get();
-  return !querySnapshot.empty;
-}
-
 /**
  * Upload ALL reports vers Firebase (version batch)
+ * Maintenant syncUpload gère automatiquement création ou mise à jour
  */
 async function uploadAllReports(req, res) {
   const client = await pool.connect();
   let uploadCount = 0;
-  let skippedCount = 0;
   let totalPhotos = 0;
 
   try {
@@ -470,26 +461,14 @@ async function uploadAllReports(req, res) {
 
     for (const row of result.rows) {
       try {
-        // Vérifier si existe déjà
-        const alreadyExists = await checkReportTraiteExists(row.firebase_id);
+        // Compter les photos
+        const photosResult = await client.query(
+          'SELECT COUNT(*) as count FROM report_photos WHERE report_id = $1',
+          [row.id]
+        );
+        totalPhotos += parseInt(photosResult.rows[0].count) || 0;
         
-        if (alreadyExists) {
-          console.log(`⏭️  Rapport ${row.firebase_id} existe déjà - skip`);
-          skippedCount++;
-          
-          // Marquer comme synchronisé même s'il existe déjà
-          await client.query(
-            'UPDATE report_syncs SET sent_to_firebase = true WHERE report_id = $1',
-            [row.id]
-          );
-          continue;
-        }
-        
-        // Récupérer les photos
-        const photos = await getReportPhotosForFirebase(row.id, client);
-        totalPhotos += photos.length;
-        
-        // Synchroniser
+        // Synchroniser (syncUpload gère automatiquement création ou mise à jour)
         await syncUpload(row, client);
         uploadCount++;
         
@@ -506,8 +485,7 @@ async function uploadAllReports(req, res) {
       message: 'Synchronisation batch terminée',
       stats: {
         uploaded: uploadCount,
-        skipped: skippedCount,
-        total_processed: uploadCount + skippedCount,
+        total_processed: uploadCount,
         photos_synced: totalPhotos
       }
     });
@@ -705,16 +683,7 @@ async function uploadReportSync(req, res) {
 
     const row = result.rows[0];
     
-    // Vérifier si déjà synchronisé
-    if (row.sent_to_firebase) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: 'Ce rapport est déjà synchronisé vers Firebase',
-        firebase_id: row.firebase_id
-      });
-    }
-    
-    // Synchroniser vers Firebase
+    // Synchroniser vers Firebase (création ou mise à jour)
     await syncUpload(row, client);
     
     await client.query('COMMIT');

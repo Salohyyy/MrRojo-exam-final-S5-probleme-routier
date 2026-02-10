@@ -121,13 +121,18 @@ async function downloadReportPhotos(reportData, postgresReportId, client) {
     }
 }
 
-// Fonction pour vérifier si un rapport existe déjà
+// Fonction pour vérifier si un rapport existe déjà et retourner son ID
 async function checkReportTraiteExists(originalFirebaseId) {
   const querySnapshot = await db.collection('reports_traites')
     .where('original_firebase_id', '==', originalFirebaseId)
     .limit(1)
     .get();
-  return !querySnapshot.empty;
+  
+  if (querySnapshot.empty) {
+    return { exists: false, docId: null };
+  }
+  
+  return { exists: true, docId: querySnapshot.docs[0].id };
 }
 
 /**
@@ -139,15 +144,20 @@ async function checkReportTraiteExists(originalFirebaseId) {
 async function syncUpload(row, client) {
     try {
         // Vérifier si le rapport traité existe déjà dans Firebase
-        const alreadyExists = await checkReportTraiteExists(row.firebase_id);
+        const { exists, docId } = await checkReportTraiteExists(row.firebase_id);
         
-        if (alreadyExists) {
-            console.log(`⚠️  Rapport traité ${row.firebase_id} existe déjà dans Firebase - skip`);
-            return;
-        }
-        
-        // Récupérer les photos associées au rapport
-        const photos = await getReportPhotosForFirebase(row.id, client);
+        // Récupérer les photos associées au rapport (toutes les photos, pas seulement les nouvelles)
+        const allPhotosResult = await client.query(
+            `SELECT photo_base64, mime_type FROM report_photos WHERE report_id = $1 ORDER BY uploaded_at ASC`,
+            [row.id]
+        );
+        const allPhotos = allPhotosResult.rows.map(photo => {
+            let photoBase64 = photo.photo_base64;
+            if (typeof photoBase64 === 'string' && photoBase64.includes('base64,')) {
+                photoBase64 = photoBase64.split('base64,')[1];
+            }
+            return photoBase64;
+        }).filter(photo => photo && typeof photo === 'string');
         
         // Données du rapport pour Firebase (INCLUANT les photos)
         const firebaseData = {
@@ -164,17 +174,26 @@ async function syncUpload(row, client) {
             company_id: row.company_id || null,
             company_name: row.company_name || null,
             synced_at: admin.firestore.FieldValue.serverTimestamp(),
-            photos: photos, // ✅ Photos directement dans le document
-            photos_count: photos.length,
+            photos: allPhotos, // ✅ Toutes les photos
+            photos_count: allPhotos.length,
             // Informations supplémentaires
             problem_type_name: row.problem_type_name || null,
             status_name: row.status_name || null
         };
 
-        // ✅ Ajouter le rapport traité à Firebase avec les photos incluses
-        const reportRef = await db.collection('reports_traites').add(firebaseData);
+        let reportRefId;
         
-        console.log(`📤 Rapport ${row.id} créé dans Firebase avec ID: ${reportRef.id} (${photos.length} photos)`);
+        if (exists) {
+            // ✅ METTRE À JOUR le document existant
+            await db.collection('reports_traites').doc(docId).update(firebaseData);
+            reportRefId = docId;
+            console.log(`📤 Rapport ${row.id} MIS À JOUR dans Firebase (ID: ${docId}) avec ${allPhotos.length} photos`);
+        } else {
+            // ✅ CRÉER un nouveau document
+            const reportRef = await db.collection('reports_traites').add(firebaseData);
+            reportRefId = reportRef.id;
+            console.log(`📤 Rapport ${row.id} CRÉÉ dans Firebase avec ID: ${reportRefId} (${allPhotos.length} photos)`);
+        }
 
         // ✅ Marquer le rapport et ses photos comme synchronisés
         await client.query(
@@ -185,16 +204,39 @@ async function syncUpload(row, client) {
         );
         
         // ✅ Marquer les photos comme synchronisées
-        if (photos.length > 0) {
+        if (allPhotos.length > 0) {
             await client.query(
                 `UPDATE report_photos 
                  SET sent_to_firebase = true, firebase_photo_id = $1 
-                 WHERE report_id = $2 AND sent_to_firebase = false`,
-                [reportRef.id, row.id]
+                 WHERE report_id = $2`,
+                [reportRefId, row.id]
             );
         }
 
-        console.log(`✅ Rapport ${row.id} complètement synchronisé vers Firebase`);
+        // ✅ METTRE À JOUR le statut dans la collection 'reports' originale de Firebase
+        if (row.firebase_id) {
+            try {
+                const originalReportRef = db.collection('reports').doc(row.firebase_id);
+                const originalDoc = await originalReportRef.get();
+                
+                if (originalDoc.exists) {
+                    await originalReportRef.update({
+                        report_status_id: row.report_status_id,
+                        status_name: row.status_name || null,
+                        is_treated: true,
+                        treated_at: admin.firestore.FieldValue.serverTimestamp(),
+                        progress: row.progress ? Number(row.progress) : null,
+                        company_name: row.company_name || null
+                    });
+                    console.log(`📝 Statut mis à jour dans reports/${row.firebase_id}: ${row.status_name}`);
+                }
+            } catch (firebaseError) {
+                console.warn(`⚠️ Impossible de mettre à jour le statut dans reports/${row.firebase_id}:`, firebaseError.message);
+                // Ne pas bloquer la synchronisation si cette mise à jour échoue
+            }
+        }
+
+        console.log(`✅ Rapport ${row.id} complètement synchronisé vers Firebase (${exists ? 'mise à jour' : 'création'})`);
         
     } catch (error) {
         console.error('Erreur sync upload:', error);
