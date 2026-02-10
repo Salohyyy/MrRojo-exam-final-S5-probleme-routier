@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS reports (
     report_status_id BIGINT NOT NULL,
     problem_type_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
+    firebase_id VARCHAR(100) UNIQUE,
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (problem_type_id) REFERENCES problem_types(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS report_syncs (
     report_status_id BIGINT NOT NULL,
     company_id BIGINT NOT NULL,
     report_id BIGINT NOT NULL,
+    sent_to_firebase BOOLEAN DEFAULT false,
     FOREIGN KEY (report_status_id) REFERENCES report_statuses(id),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (report_id) REFERENCES reports(id)
@@ -135,6 +137,33 @@ INSERT INTO user_statuses (name) VALUES
     ('blocked') 
 ON CONFLICT DO NOTHING;
 
+-- Insérer les statuts de rapport
+INSERT INTO report_statuses (id, name, level) VALUES 
+    (1, 'Nouveau', 1), 
+    (2, 'En cours', 2), 
+    (3, 'Terminé', 3), 
+    (4, 'Rejeté', 0),
+    (5, 'Résolu', 4),
+    (6, 'Archivé', 5)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insérer les types de problème
+INSERT INTO problem_types (id, name) VALUES 
+    (1, 'Nid de poule'), 
+    (2, 'Chaussée dégradée'), 
+    (3, 'Lampadaires'),
+    (4, 'Fissure'), 
+    (5, 'Glissement'), 
+    (6, 'Inondation')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insérer les entreprises
+INSERT INTO companies (id, name, address) VALUES 
+    (1, 'Colas', 'Analakely'), 
+    (2, 'STB', 'Ankadilana'), 
+    (3, 'Vinci', 'Isoraka')
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================
 -- CRÉER L'EMPLOYÉ ADMIN PAR DÉFAUT
 -- ============================================
@@ -182,16 +211,3 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
 END $$;
 */
-ALTER TABLE reports ADD COLUMN firebase_id VARCHAR(100);
-
-ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
-
--- Insertion des statuts de rapport
-INSERT INTO report_statuses (id, name, level) VALUES (1, 'Nouveau', 1), (2, 'En cours', 2), (3, 'Terminé', 3), (4, 'Rejeté', 0);
-
-INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation');
-
-INSERT INTO companies (id, name, address) VALUES (1, 'Colas', 'Analakely'), (2, 'STB', 'Ankadilana'), (3, 'Vinci', 'Isoraka');
-
--- Ajouter une contrainte UNIQUE sur firebase_id
-ALTER TABLE reports ADD CONSTRAINT unique_firebase_id UNIQUE (firebase_id);
