@@ -112,11 +112,11 @@ node scripts/create-admin-employee.js admin@example.com 123456! Admin
 **Résultat attendu :**
 ```
 🔄 Création de l'employé admin...
-✅ Utilisateur Firebase créé
+ Utilisateur Firebase créé
    UID: abc123...
-✅ Rôle admin Firebase attribué
-✅ Rôle admin créé dans la base
-✅ Employé créé dans la base locale
+ Rôle admin Firebase attribué
+ Rôle admin créé dans la base
+ Employé créé dans la base locale
 
 🎉 Employé admin créé avec succès !
 

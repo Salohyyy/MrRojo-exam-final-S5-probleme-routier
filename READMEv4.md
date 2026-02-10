@@ -5,18 +5,18 @@
 ### Deux systèmes d'authentification séparés :
 
 1. **Employés (Admin)** 
-   - ✅ Authentification 100% locale (PostgreSQL)
-   - ✅ **Mot de passe en clair** (pas de hash)
-   - ✅ Pas besoin de Firebase pour se connecter
-   - ✅ Fonctionne hors ligne
-   - ✅ Utilisent JWT pour les sessions
-   - ✅ **Employé admin créé automatiquement au démarrage**
+   -  Authentification 100% locale (PostgreSQL)
+   -  **Mot de passe en clair** (pas de hash)
+   -  Pas besoin de Firebase pour se connecter
+   -  Fonctionne hors ligne
+   -  Utilisent JWT pour les sessions
+   -  **Employé admin créé automatiquement au démarrage**
 
 2. **Utilisateurs normaux**
-   - ✅ Authentification 100% Firebase
-   - ✅ Pas de base locale
-   - ✅ Paramètres stockés dans Firebase Firestore
-   - ✅ Gérés par les employés via l'interface admin
+   -  Authentification 100% Firebase
+   -  Pas de base locale
+   -  Paramètres stockés dans Firebase Firestore
+   -  Gérés par les employés via l'interface admin
 
 ## 📋 Prérequis
 
@@ -172,14 +172,14 @@ role: admin
 ```
 Collections créées automatiquement au premier usage :
 
-✅ auth_settings/global 
+ auth_settings/global 
    - session_duration_minutes (30 par défaut)
    - default_max_login_attempts (3 par défaut)
 
-✅ user_settings/{uid}
+ user_settings/{uid}
    - max_login_attempts (personnalisé ou null)
 
-✅ login_attempts/{uid}
+ login_attempts/{uid}
    - failed_attempts, is_blocked, blocked_at
 ```
 
@@ -235,7 +235,7 @@ POST /api/admin/users/:uid/unblock
 ```bash
 # Ouvrir http://localhost
 # Login : admin / admin123
-# ✅ Accès direct sans script !
+#  Accès direct sans script !
 ```
 
 ### 2. Test utilisateur Firebase
@@ -246,7 +246,7 @@ POST /api/admin/users/:uid/unblock
 
 # Interface Utilisateur (Test)
 # Se connecter avec test@example.com / test123
-# ✅ Ça marche !
+#  Ça marche !
 ```
 
 ### 3. Test blocage
@@ -254,11 +254,11 @@ POST /api/admin/users/:uid/unblock
 ```bash
 # Interface Utilisateur
 # Se tromper 3 fois de mot de passe
-# ✅ Compte bloqué
+#  Compte bloqué
 
 # Interface Admin > Utilisateurs bloqués
 # Cliquer "Débloquer"
-# ✅ Compte débloqué
+#  Compte débloqué
 ```
 
 ## 📝 Commandes utiles
@@ -289,8 +289,8 @@ docker-compose up --build
 ### ⚠️ Important
 
 **Mot de passe en clair** : 
-- ✅ Simple pour le développement
-- ✅ Facile d'ajouter des employés via SQL
+-  Simple pour le développement
+-  Facile d'ajouter des employés via SQL
 - ❌ **NE PAS utiliser en production !**
 - ❌ Pour la production, utilisez bcrypt
 
@@ -302,11 +302,11 @@ docker-compose up --build
 
 ## 🎉 Avantages
 
-✅ **Pas de script séparé** - Tout dans init.sql
-✅ **Employé admin créé automatiquement** - Prêt à l'emploi
-✅ **Mot de passe en clair** - Facile à gérer en dev
-✅ **Insertion SQL directe** - Ajouter des employés facilement
-✅ **100% hors ligne pour admin** - Pas besoin d'internet
+ **Pas de script séparé** - Tout dans init.sql
+ **Employé admin créé automatiquement** - Prêt à l'emploi
+ **Mot de passe en clair** - Facile à gérer en dev
+ **Insertion SQL directe** - Ajouter des employés facilement
+ **100% hors ligne pour admin** - Pas besoin d'internet
 
 ## 🐛 Dépannage
 
@@ -316,7 +316,7 @@ docker-compose up --build
 docker-compose logs postgres
 
 # Devrait afficher :
-# NOTICE: ✅ Employé admin créé : username=admin, password=admin123
+# NOTICE:  Employé admin créé : username=admin, password=admin123
 
 # Si absent, recréer :
 docker-compose down -v

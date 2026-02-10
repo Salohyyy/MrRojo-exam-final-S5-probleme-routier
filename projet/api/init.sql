@@ -185,7 +185,7 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
     
     -- Afficher un message (visible dans les logs Docker)
-    RAISE NOTICE '✅ Employé admin créé : username=admin, password=admin123';
+    RAISE NOTICE ' Employé admin créé : username=admin, password=admin123';
 END $$;
 
 -- ============================================
@@ -211,3 +211,41 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
 END $$;
 */
+
+ALTER TABLE reports ADD COLUMN firebase_id VARCHAR(100);
+
+ALTER TABLE report_syncs ADD COLUMN sent_to_firebase BOOLEAN DEFAULT false;
+
+-- Insertion des statuts de rapport
+INSERT INTO report_statuses (id, name, level) VALUES (1, 'Nouveau', 1), (2, 'En cours', 2), (3, 'Terminé', 3), (4, 'Rejeté', 0);
+
+INSERT INTO problem_types (id, name) VALUES (1, 'Nid de poule'), (2, 'Fissure'), (3, 'Glissement'), (4, 'Innondation') , (5, 'Autre');
+
+INSERT INTO companies (id, name, address) VALUES (1, 'Colas', 'Analakely'), (2, 'STB', 'Ankadilana'), (3, 'Vinci', 'Isoraka');
+
+-- Ajouter une contrainte UNIQUE sur firebase_id
+ALTER TABLE reports ADD CONSTRAINT unique_firebase_id UNIQUE (firebase_id); 
+
+-- Table pour stocker les photos associées à un rapport
+CREATE TABLE IF NOT EXISTS report_photos (
+    id BIGSERIAL PRIMARY KEY,
+    report_id BIGINT NOT NULL,
+    photo_data BYTEA NOT NULL,  -- Données binaires de la photo
+    photo_base64 TEXT NOT NULL,  -- Copie en base64 pour facilité
+    mime_type VARCHAR(50) DEFAULT 'image/jpeg',
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_to_firebase BOOLEAN DEFAULT false,
+    firebase_photo_id VARCHAR(100),  -- ID Firebase de la photo
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    UNIQUE(firebase_photo_id)
+);
+ 
+CREATE INDEX IF NOT EXISTS idx_report_photos_report_id ON report_photos(report_id);
+CREATE INDEX IF NOT EXISTS idx_report_photos_sent ON report_photos(sent_to_firebase);
+CREATE INDEX IF NOT EXISTS idx_report_photos_firebase_id ON report_photos(firebase_photo_id);
+ 
+ALTER TABLE reports 
+ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;
+ 
+ALTER TABLE report_syncs 
+ADD COLUMN IF NOT EXISTS photos_synced BOOLEAN DEFAULT false;

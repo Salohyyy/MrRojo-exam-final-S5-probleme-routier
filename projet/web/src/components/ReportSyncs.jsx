@@ -17,6 +17,8 @@ function ReportSyncs({ readOnly = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [syncingId, setSyncingId] = useState(null);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   // Modal de changement de statut
   const [statusModal, setStatusModal] = useState(null);
@@ -133,6 +135,50 @@ function ReportSyncs({ readOnly = false }) {
       showNotification('Erreur: ' + err.message, 'error');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  // Synchroniser un seul report_sync vers Firebase
+  const syncToFirebase = async (syncId) => {
+    setSyncingId(syncId);
+    try {
+      await reportsAPI.uploadReportSync(syncId);
+      showNotification(`Chantier #${syncId} synchronisé vers Firebase`, 'success');
+    } catch (err) {
+      console.error('Erreur sync:', err);
+      showNotification('Erreur: ' + (err.response?.data?.error || err.message), 'error');
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  // Synchroniser tous les report_syncs vers Firebase
+  const syncAllToFirebase = async () => {
+    if (reportSyncs.length === 0) {
+      showNotification('Aucun chantier à synchroniser', 'error');
+      return;
+    }
+
+    setSyncingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const sync of reportSyncs) {
+      try {
+        await reportsAPI.uploadReportSync(sync.id);
+        successCount++;
+      } catch (err) {
+        console.error(`Erreur sync #${sync.id}:`, err);
+        errorCount++;
+      }
+    }
+
+    setSyncingAll(false);
+    
+    if (errorCount === 0) {
+      showNotification(`${successCount} chantier(s) synchronisé(s) avec succès`, 'success');
+    } else {
+      showNotification(`${successCount} succès, ${errorCount} erreur(s)`, 'error');
     }
   };
 
@@ -271,9 +317,23 @@ function ReportSyncs({ readOnly = false }) {
           <h1 style={styles.title}>🚧 Suivi des Chantiers</h1>
           <p style={styles.subtitle}>📊 Gestion de l'avancement des travaux</p>
         </div>
-        <button onClick={() => { fetchReportSyncs(); fetchAllHistories(); }} style={styles.refreshButton}>
-          🔄 Actualiser
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {!readOnly && reportSyncs.length > 0 && (
+            <button 
+              onClick={syncAllToFirebase} 
+              disabled={syncingAll}
+              style={{
+                ...styles.refreshButton,
+                backgroundColor: syncingAll ? '#95a5a6' : '#27ae60'
+              }}
+            >
+              {syncingAll ? '⏳ Synchronisation...' : `🔄 Tout synchroniser (${reportSyncs.length})`}
+            </button>
+          )}
+          <button onClick={() => { fetchReportSyncs(); fetchAllHistories(); }} style={styles.refreshButton}>
+            🔄 Actualiser
+          </button>
+        </div>
       </div>
 
       {/* Onglets */}
@@ -461,13 +521,25 @@ function ReportSyncs({ readOnly = false }) {
                         </td>
                         {!readOnly && (
                           <td style={styles.td}>
-                            <button
-                              onClick={() => openStatusModal(sync)}
-                              disabled={updatingId === sync.id}
-                              style={styles.changeStatusBtn}
-                            >
-                              {updatingId === sync.id ? '⏳' : '✏️ Modifier'}
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <button
+                                onClick={() => openStatusModal(sync)}
+                                disabled={updatingId === sync.id}
+                                style={styles.changeStatusBtn}
+                              >
+                                {updatingId === sync.id ? '⏳' : '✏️ Modifier'}
+                              </button>
+                              <button
+                                onClick={() => syncToFirebase(sync.id)}
+                                disabled={syncingId === sync.id || syncingAll}
+                                style={{
+                                  ...styles.changeStatusBtn,
+                                  backgroundColor: '#3498db'
+                                }}
+                              >
+                                {syncingId === sync.id ? '⏳' : '🔄 Synchroniser'}
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>

@@ -80,7 +80,7 @@ function UserLogin() {
         remainingMinutes: loginResponse.data.sessionDurationMinutes
       });
 
-      setSuccess(`✅ Connexion réussie ! Session valide pour ${loginResponse.data.sessionDurationMinutes} minutes.`);
+      setSuccess(` Connexion réussie ! Session valide pour ${loginResponse.data.sessionDurationMinutes} minutes.`);
       setAttemptsLeft(null);
 
     } catch (err) {
